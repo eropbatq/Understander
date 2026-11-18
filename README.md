@@ -1,10 +1,10 @@
 # 🌐 Understander — Мобильный переводчик для Android
 
-![Platform](https://shields.io)
-![Framework](https://shields.io)
-![IDE](https://shields.io)
-![Database](https://shields.io)
-![Status](https://shields.io)
+![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)
+![Framework](https://img.shields.io/badge/Framework-.NET%20MAUI%209-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![IDE](https://img.shields.io/badge/IDE-Visual%20Studio%202022-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
+![Database](https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=flat-square)
 
 **Understander** — это кроссплатформенное мобильное приложение-переводчик с фокусом на платформу **Android**, разрабатываемое в рамках курсового проекта. Приложение позволяет переводить текст в реальном времени с использованием внешних API и сохранять историю запросов в локальной базе данных для офлайн-доступа.
 
