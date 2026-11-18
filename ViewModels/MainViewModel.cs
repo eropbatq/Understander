@@ -1,23 +1,26 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Microsoft.Maui.Controls;
+using Understander.Models;
 using Understander.Services;
 
 namespace Understander.ViewModels;
 
 public record Lang(string Code, string Name);
+
 public record HistoryItem(string Source, string Result, string Pair);
 
 public partial class MainViewModel : INotifyPropertyChanged
 {
     readonly OcrService _ocr;
+    readonly HistoryDatabase _database;
 
     public List<ITranslator> Providers { get; }
     public List<Lang> FromLangs { get; } = new()
     {
-        new("auto", "Определить"), new("ru", "Русский"), new("en", "English"), new("de", "Deutsch"),
+        new("ru", "Русский"), new("en", "English"), new("de", "Deutsch"),
         new("fr", "Français"), new("es", "Español"), new("it", "Italiano"), new("tr", "Türkçe"), new("zh", "中文")
     };
     public List<Lang> ToLangs => FromLangs.Where(l => l.Code != "auto").ToList();
@@ -68,13 +71,15 @@ public partial class MainViewModel : INotifyPropertyChanged
     public ICommand CopyCommand { get; }
     public ICommand ClearCommand { get; }
     public ICommand UseHistoryCommand { get; }
+    public ICommand DeleteHistoryCommand { get; }
 
-    public MainViewModel(IEnumerable<ITranslator> providers, OcrService ocr)
+    public MainViewModel(IEnumerable<ITranslator> providers, OcrService ocr, HistoryDatabase database)
     {
         Providers = providers.ToList();
         _ocr = ocr;
+        _database = database;
         Provider = Providers[0];
-        From = FromLangs[0];
+        From = FromLangs[0]; // Russian
         To = ToLangs[1]; // English
 
         TranslateCommand = new AsyncCommand(Translate);
@@ -84,6 +89,34 @@ public partial class MainViewModel : INotifyPropertyChanged
         CopyCommand = new AsyncCommand(Copy);
         ClearCommand = new Command(Clear);
         UseHistoryCommand = new Command<HistoryItem>(UseHistory);
+        DeleteHistoryCommand = new Command<HistoryItem>(DeleteHistory);
+
+        _ = LoadHistory();
+
+        // Подписываемся на сообщение из HistoryViewModel
+#pragma warning disable CS0618 // Type or member is obsolete
+        MessagingCenter.Subscribe<HistoryViewModel, HistoryRecord>(this, "UseHistoryItem", (sender, item) =>
+        {
+            Input = item.Source;
+            Result = item.Result;
+        });
+#pragma warning restore CS0618
+    }
+
+    async Task LoadHistory()
+    {
+        try
+        {
+            var records = await _database.GetRecordsAsync();
+            foreach (var r in records)
+            {
+                History.Add(new(r.Source, r.Result, r.Pair));
+            }
+        }
+        catch
+        {
+            // Silent fail — app works without history
+        }
     }
 
     async Task Translate()
@@ -93,8 +126,44 @@ public partial class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
-            Result = await Provider.TranslateAsync(Input, From.Code, To.Code);
-            History.Insert(0, new(Input, Result, $"{From.Code} → {To.Code} · {Provider.Name}"));
+            string result;
+            string pair;
+            var lastError = (Exception?)null;
+
+            // Try selected provider first, then fallback to others
+            foreach (var provider in Providers)
+            {
+                try
+                {
+                    result = await provider.TranslateAsync(Input, From.Code, To.Code);
+                    pair = $"{From.Code} → {To.Code} · {provider.Name}";
+                    Provider = provider; // Update selected provider on success
+                    Result = result; // <-- показать результат на экране
+                    History.Insert(0, new(Input, result, pair));
+
+                    // Save to database
+                    try
+                    {
+                        await _database.InsertRecordAsync(new HistoryRecord
+                        {
+                            Source = Input,
+                            Result = result,
+                            Pair = pair
+                        });
+                    }
+                    catch { /* Silent fail */ }
+
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    // Continue to next provider
+                }
+            }
+
+            // All providers failed
+            throw lastError ?? new Exception("Все переводчики недоступны");
         }
         catch (Exception ex)
         {
@@ -109,11 +178,13 @@ public partial class MainViewModel : INotifyPropertyChanged
     void Swap()
     {
         if (From.Code == "auto") return;
-        From = FromLangs.First(l => l.Code == To.Code);
-        To = ToLangs.First(l => l.Code == From.Code);
-        var temp = Input;
+        // Простой обмен языков
+        var tempLang = From;
+        From = To;
+        To = tempLang;
+        var tempInput = Input;
         Input = Result;
-        Result = temp;
+        Result = tempInput;
     }
 
     async Task Photo()
@@ -132,8 +203,12 @@ public partial class MainViewModel : INotifyPropertyChanged
         try
         {
             Input = await _ocr.ReadTextAsync(file);
-            if (!string.IsNullOrWhiteSpace(Input))
+            if (!string.IsNullOrWhiteSpace(Input) && !Input.StartsWith("Ошибка") && !Input.StartsWith("("))
                 await Translate();
+            else
+            {
+                await Shell.Current.DisplayAlert("OCR", $"Не удалось распознать текст: {Input}", "OK");
+            }
         }
         catch (Exception ex)
         {
@@ -161,17 +236,12 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     void UseHistory(HistoryItem item) { Input = item.Source; Result = item.Result; }
 
+    void DeleteHistory(HistoryItem item)
+    {
+        History.Remove(item);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-}
-
-// Simple async command wrapper
-public class AsyncCommand : ICommand
-{
-    readonly Func<Task> _execute;
-    public AsyncCommand(Func<Task> execute) { _execute = execute; }
-    public bool CanExecute(object? parameter) => true;
-    public void Execute(object? parameter) { _ = _execute(); }
-    public event EventHandler? CanExecuteChanged;
 }

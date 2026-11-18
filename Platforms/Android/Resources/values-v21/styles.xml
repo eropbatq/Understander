@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:colorControlNormal">?attr/colorControlNormal</item>
+        <item name="android:colorControlActivated">?attr/colorControlActivated</item>
+        <item name="android:colorControlHighlight">?attr/colorControlHighlight</item>
+        <item name="android:windowActionBarOverlay">true</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="actionBarSize">48dp</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
+    <dimen name="abc_text_size_menu_header_material">14dp</dimen>
+</resources>
