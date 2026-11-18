@@ -7,8 +7,8 @@
     Title="Understander">
 
     <ShellContent
-        Title="Home"
+        Title="Главная"
         ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Route="Views.MainPage" />
 
 </Shell>

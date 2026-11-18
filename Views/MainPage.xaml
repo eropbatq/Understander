@@ -1,0 +1,82 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Understander.MainPage"
+             BackgroundColor="{DynamicResource SecondaryColor}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12" VerticalOptions="Start">
+
+            <!-- Provider selector -->
+            <Picker Title="Движок перевода" ItemsSource="{Binding Providers}"
+                    ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding Provider}"
+                    BackgroundColor="Gray" />
+
+            <!-- Language pair -->
+            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
+                <Picker Grid.Column="0" ItemsSource="{Binding FromLangs}"
+                        ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding From}"
+                        BackgroundColor="Grey" />
+                <Button Grid.Column="1" Text="⇄" Command="{Binding SwapCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White" />
+                <Picker Grid.Column="2" ItemsSource="{Binding ToLangs}"
+                        ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding To}"
+                        BackgroundColor="Grey" />
+            </Grid>
+
+            <!-- Input text -->
+            <Border Padding="8" StrokeShape="RoundRectangle 12" BackgroundColor="Grey">
+                <Editor Placeholder="Введите текст…" Text="{Binding Input}" AutoSize="TextChanges" 
+                        MinimumHeightRequest="100" />
+            </Border>
+
+            <!-- Action buttons -->
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" Text="📷" Command="{Binding PhotoCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White" />
+                <Button Grid.Column="1" Text="✕" Command="{Binding ClearCommand}"
+                        BackgroundColor="#E74C3C" TextColor="White" />
+                <Button Grid.Column="2" Text="Перевести" Command="{Binding TranslateCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White" />
+                <Button Grid.Column="3" Text="🔊" Command="{Binding SpeakCommand}"
+                        BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White" />
+            </Grid>
+
+            <!-- Loading indicator -->
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" 
+                               Color="{DynamicResource PrimaryColor}" />
+
+            <!-- Result -->
+            <Border Padding="12" StrokeShape="RoundRectangle 12" BackgroundColor="Grey">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding Result}" FontSize="18" 
+                           TextColor="{DynamicResource LabelColor}" />
+                    <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
+                        <Button Text="📋" Command="{Binding CopyCommand}"
+                                BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- History -->
+            <Label Text="История переводов" FontAttributes="Bold" 
+                   TextColor="{DynamicResource LabelColor}" Margin="0,8,0,4"/>
+            <CollectionView ItemsSource="{Binding History}" HeightRequest="200"
+                            SelectionMode="Single"
+                            SelectionChangedCommand="{Binding UseHistoryCommand}"
+                            SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}"
+                            BackgroundColor="Grey">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <VerticalStackLayout Padding="8,4">
+                            <Label Text="{Binding Source}" FontAttributes="Bold" FontSize="14" />
+                            <Label Text="{Binding Result}" FontSize="13" Margin="0,2,0,0" />
+                            <Label Text="{Binding Pair}" FontSize="10" TextColor="Gray" Margin="0,2,0,0" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

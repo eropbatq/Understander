@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="MauiEnableXamlCBindingWithSourceCompilation" />
+  </ItemGroup>
+</Project>

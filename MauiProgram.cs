@@ -1,25 +1,24 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CommunityToolkit.Maui;
+using Understander.Services;
+using Understander.ViewModels;
 
-namespace Understander
+namespace Understander;
+
+public static class MauiProgram
 {
-    public static class MauiProgram
+    public static MauiApp CreateMauiApp()
     {
-        public static MauiApp CreateMauiApp()
-        {
-            var builder = MauiApp.CreateBuilder();
-            builder
-                .UseMauiApp<App>()
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                });
+        var builder = MauiApp.CreateBuilder();
+        builder.UseMauiApp<App>()
+               .UseMauiCommunityToolkit();
 
-#if DEBUG
-    		builder.Logging.AddDebug();
-#endif
+        builder.Services.AddSingleton<HttpClient>();
+        builder.Services.AddSingleton<ITranslator, GoogleTranslator>();
+        builder.Services.AddSingleton<ITranslator, MyMemoryTranslator>();
+        builder.Services.AddSingleton<OcrService>();
+        builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddSingleton<MainPage>();
 
-            return builder.Build();
-        }
+        return builder.Build();
     }
 }
