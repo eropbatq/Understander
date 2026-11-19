@@ -26,18 +26,18 @@
          поэтому страницы используют только "{DynamicResource ...}".
          ============================================================ -->
 
-    <!-- Page / surfaces (dark-first: под тёмную тему приложение выглядит особенно хорошо) -->
-    <Color x:Key="PageBgLight">#EEF0FA</Color>
-    <Color x:Key="PageBgDark">#0F111A</Color>
+    <!-- Page / surfaces: нейтральный серый фон, карточки — чуть светлее/темнее -->
+    <Color x:Key="PageBgLight">#EFEFF2</Color>
+    <Color x:Key="PageBgDark">#17181B</Color>
 
     <Color x:Key="SurfaceLight">#FFFFFF</Color>
-    <Color x:Key="SurfaceDark">#191C29</Color>
+    <Color x:Key="SurfaceDark">#1F2023</Color>
 
-    <Color x:Key="SurfaceAltLight">#F4F5FC</Color>
-    <Color x:Key="SurfaceAltDark">#222637</Color>
+    <Color x:Key="SurfaceAltLight">#E3E3E8</Color>
+    <Color x:Key="SurfaceAltDark">#2B2C31</Color>
 
-    <Color x:Key="HairlineLight">#E4E7F3</Color>
-    <Color x:Key="HairlineDark">#2E3348</Color>
+    <Color x:Key="HairlineLight">#DBDBE1</Color>
+    <Color x:Key="HairlineDark">#33343A</Color>
 
     <!-- Accent (фиолетовый из брендинга .NET MAUI, но насыщеннее) -->
     <Color x:Key="AccentLight">#5B45E0</Color>

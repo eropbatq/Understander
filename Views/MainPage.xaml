@@ -10,13 +10,10 @@
     <ScrollView VerticalScrollBarVisibility="Never">
         <VerticalStackLayout Padding="20,16,20,28" Spacing="16" VerticalOptions="Start">
 
-            <!-- Greeting -->
+            <!-- Brand -->
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <VerticalStackLayout Grid.Column="0" Spacing="4">
-                    <Label Text="UNDERSTANDER" Style="{StaticResource BrandText}" />
-                    <Label Text="Перевод без границ" Style="{StaticResource ScreenTitle}" />
-                    <Label Text="Введите текст или сделайте снимок" Style="{StaticResource ScreenSubtitle}" />
-                </VerticalStackLayout>
+                <Label Grid.Column="0" Text="UNDERSTANDER" Style="{StaticResource BrandText}"
+                       VerticalOptions="Center" />
                 <Border Grid.Column="1" Style="{StaticResource IconTileBorder}" VerticalOptions="Center">
                     <Label Text="🌐" FontSize="24" HorizontalOptions="Center" VerticalOptions="Center" />
                 </Border>
@@ -30,30 +27,27 @@
                                VerticalOptions="Center" />
                         <Picker Grid.Column="1" ItemsSource="{Binding Providers}"
                                 ItemDisplayBinding="{Binding Name, x:DataType=services:ITranslator}" SelectedItem="{Binding Provider}"
-                                Style="{StaticResource InlinePicker}" HorizontalTextAlignment="End" />
+                                Style="{StaticResource InlinePicker}" HorizontalTextAlignment="Center" />
                     </Grid>
 
                     <BoxView Style="{StaticResource Divider}" />
 
                     <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="10">
-                        <VerticalStackLayout Grid.Column="0" Spacing="2">
-                            <Label Text="ОТ" Style="{StaticResource FieldCaption}" />
-                            <Picker ItemsSource="{Binding FromLangs}" ItemDisplayBinding="{Binding Name, x:DataType=vm:Lang}"
-                                    SelectedItem="{Binding From}" Style="{StaticResource InlinePicker}" />
-                        </VerticalStackLayout>
+                        <Picker Grid.Column="0" ItemsSource="{Binding FromLangs}"
+                                ItemDisplayBinding="{Binding Name, x:DataType=vm:Lang}"
+                                SelectedItem="{Binding From}" Style="{StaticResource InlinePicker}"
+                                HorizontalTextAlignment="Center" VerticalOptions="Center" />
 
                         <Button Grid.Column="1" Text="⇄" Command="{Binding SwapCommand}"
                                 Style="{StaticResource IconButton}"
                                 WidthRequest="40" HeightRequest="40" CornerRadius="12" FontSize="16"
                                 MinimumWidthRequest="40" MinimumHeightRequest="40"
-                                VerticalOptions="End" Margin="0,0,0,4" />
+                                VerticalOptions="Center" />
 
-                        <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="End">
-                            <Label Text="КОМУ" Style="{StaticResource FieldCaption}" />
-                            <Picker ItemsSource="{Binding ToLangs}" ItemDisplayBinding="{Binding Name, x:DataType=vm:Lang}"
-                                    SelectedItem="{Binding To}" Style="{StaticResource InlinePicker}"
-                                    HorizontalTextAlignment="End" />
-                        </VerticalStackLayout>
+                        <Picker Grid.Column="2" ItemsSource="{Binding ToLangs}"
+                                ItemDisplayBinding="{Binding Name, x:DataType=vm:Lang}"
+                                SelectedItem="{Binding To}" Style="{StaticResource InlinePicker}"
+                                HorizontalTextAlignment="Center" VerticalOptions="Center" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>
@@ -61,14 +55,9 @@
             <!-- Input card -->
             <Border Style="{StaticResource CardBorder}" Padding="0">
                 <VerticalStackLayout Spacing="0">
-                    <Grid ColumnDefinitions="*,Auto" Padding="16,14,16,0">
-                        <Label Grid.Column="0" Text="ВАШ ТЕКСТ" Style="{StaticResource SectionTitle}"
-                               VerticalOptions="Center" />
-                        <Button Grid.Column="1" Text="✕" Command="{Binding ClearCommand}"
-                                Style="{StaticResource IconButton}"
-                                WidthRequest="30" HeightRequest="30" CornerRadius="10" FontSize="12"
-                                MinimumWidthRequest="30" MinimumHeightRequest="30" />
-                    </Grid>
+                    <Button Text="📋 Вставить" Command="{Binding PasteCommand}"
+                            Style="{StaticResource SoftButton}"
+                            HorizontalOptions="End" Margin="16,12,16,0" />
                     <Editor Placeholder="Введите текст…" Text="{Binding Input}"
                             Margin="12,8,12,12" AutoSize="TextChanges"
                             MinimumHeightRequest="110" />

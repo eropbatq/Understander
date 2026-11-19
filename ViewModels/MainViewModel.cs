@@ -79,6 +79,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public ICommand SpeakCommand { get; }
     public ICommand CopyCommand { get; }
     public ICommand ClearCommand { get; }
+    public ICommand PasteCommand { get; }
     public ICommand UseHistoryCommand { get; }
     public ICommand DeleteHistoryCommand { get; }
 
@@ -97,6 +98,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         SpeakCommand = new AsyncCommand(Speak);
         CopyCommand = new AsyncCommand(Copy);
         ClearCommand = new Command(Clear);
+        PasteCommand = new AsyncCommand(Paste);
         UseHistoryCommand = new Command<HistoryItem>(UseHistory);
         DeleteHistoryCommand = new Command<HistoryItem>(DeleteHistory);
 
@@ -213,7 +215,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
-            Input = await _ocr.ReadTextAsync(file);
+            Input = await _ocr.ReadTextAsync(file, From.Code);
             if (!string.IsNullOrWhiteSpace(Input) && !Input.StartsWith("Ошибка") && !Input.StartsWith("("))
                 await Translate();
             else
@@ -244,6 +246,24 @@ public partial class MainViewModel : INotifyPropertyChanged
     async Task Copy() => await Clipboard.Default.SetTextAsync(Result);
 
     void Clear() { Input = ""; Result = ""; Pair = ""; }
+
+    /// <summary>Вставляет текст из буфера обмена (заменяет текущий ввод).</summary>
+    async Task Paste()
+    {
+        try
+        {
+            if (!Clipboard.Default.HasText) return;
+
+            var text = await Clipboard.Default.GetTextAsync();
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            Input = text;
+        }
+        catch (Exception ex)
+        {
+            await Shell.Current.DisplayAlert("Буфер обмена", ex.Message, "OK");
+        }
+    }
 
     void UseHistory(HistoryItem item) { Input = item.Source; Result = item.Result; Pair = item.Pair; }
 
