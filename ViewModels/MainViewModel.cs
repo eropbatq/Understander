@@ -31,6 +31,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private Lang _to = null!;
     private string _input = "";
     private string _result = "";
+    private string _pair = "";
     private bool _isBusy;
 
     public ITranslator Provider
@@ -56,8 +57,16 @@ public partial class MainViewModel : INotifyPropertyChanged
     public string Result
     {
         get => _result;
-        set { _result = value; OnPropertyChanged(); }
+        set { _result = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResult)); }
     }
+    /// <summary>Языковая пара и движок последнего успешного перевода (для "чипа" на карточке результата).</summary>
+    public string Pair
+    {
+        get => _pair;
+        set { _pair = value; OnPropertyChanged(); }
+    }
+    /// <summary>Есть ли результат для показа карточки перевода.</summary>
+    public bool HasResult => !string.IsNullOrWhiteSpace(_result);
     public bool IsBusy
     {
         get => _isBusy;
@@ -99,6 +108,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             Input = item.Source;
             Result = item.Result;
+            Pair = item.Pair;
         });
 #pragma warning restore CS0618
     }
@@ -136,8 +146,9 @@ public partial class MainViewModel : INotifyPropertyChanged
                 try
                 {
                     result = await provider.TranslateAsync(Input, From.Code, To.Code);
-                    pair = $"{From.Code} → {To.Code} · {provider.Name}";
+                    pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {provider.Name}";
                     Provider = provider; // Update selected provider on success
+                    Pair = pair;
                     Result = result; // <-- показать результат на экране
                     History.Insert(0, new(Input, result, pair));
 
@@ -232,9 +243,9 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     async Task Copy() => await Clipboard.Default.SetTextAsync(Result);
 
-    void Clear() { Input = ""; Result = ""; }
+    void Clear() { Input = ""; Result = ""; Pair = ""; }
 
-    void UseHistory(HistoryItem item) { Input = item.Source; Result = item.Result; }
+    void UseHistory(HistoryItem item) { Input = item.Source; Result = item.Result; Pair = item.Pair; }
 
     void DeleteHistory(HistoryItem item)
     {

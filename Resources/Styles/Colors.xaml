@@ -19,27 +19,76 @@
     <Color x:Key="MidnightBlue">#190649</Color>
     <Color x:Key="OffBlack">#1f1f1f</Color>
 
-    <Color x:Key="Gray100">#E1E1E1</Color>
-    <Color x:Key="Gray200">#C8C8C8</Color>
-    <Color x:Key="Gray300">#ACACAC</Color>
-    <Color x:Key="Gray400">#919191</Color>
-    <Color x:Key="Gray500">#6E6E6E</Color>
-    <Color x:Key="Gray600">#404040</Color>
-    <Color x:Key="Gray900">#212121</Color>
-    <Color x:Key="Gray950">#141414</Color>
+    <!-- ============================================================
+         Understander Palette
+         Каждая пара "Light/Dark" определена один раз, ниже для неё
+         созданы DynamicResource-ключи со значениями AppThemeBinding,
+         поэтому страницы используют только "{DynamicResource ...}".
+         ============================================================ -->
 
-    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
-    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
-    <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}"/>
-    <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}"/>
-    <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}"/>
+    <!-- Page / surfaces (dark-first: под тёмную тему приложение выглядит особенно хорошо) -->
+    <Color x:Key="PageBgLight">#EEF0FA</Color>
+    <Color x:Key="PageBgDark">#0F111A</Color>
 
-    <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
-    <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>
-    <SolidColorBrush x:Key="Gray300Brush" Color="{StaticResource Gray300}"/>
-    <SolidColorBrush x:Key="Gray400Brush" Color="{StaticResource Gray400}"/>
-    <SolidColorBrush x:Key="Gray500Brush" Color="{StaticResource Gray500}"/>
-    <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
-    <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
-    <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
+    <Color x:Key="SurfaceLight">#FFFFFF</Color>
+    <Color x:Key="SurfaceDark">#191C29</Color>
+
+    <Color x:Key="SurfaceAltLight">#F4F5FC</Color>
+    <Color x:Key="SurfaceAltDark">#222637</Color>
+
+    <Color x:Key="HairlineLight">#E4E7F3</Color>
+    <Color x:Key="HairlineDark">#2E3348</Color>
+
+    <!-- Accent (фиолетовый из брендинга .NET MAUI, но насыщеннее) -->
+    <Color x:Key="AccentLight">#5B45E0</Color>
+    <Color x:Key="AccentDark">#A996FF</Color>
+
+    <Color x:Key="AccentSoftLight">#EDE9FF</Color>
+    <Color x:Key="AccentSoftDark">#2A2447</Color>
+
+    <Color x:Key="GradientToLight">#9B6BFF</Color>
+    <Color x:Key="GradientToDark">#6E5AE0</Color>
+
+    <!-- Text -->
+    <Color x:Key="TextPrimaryLight">#14162B</Color>
+    <Color x:Key="TextPrimaryDark">#F2F3FA</Color>
+
+    <Color x:Key="TextSecondaryLight">#5D6279</Color>
+    <Color x:Key="TextSecondaryDark">#9CA2BC</Color>
+
+    <Color x:Key="TextMutedLight">#8C91A8</Color>
+    <Color x:Key="TextMutedDark">#6E7591</Color>
+
+    <Color x:Key="OnAccentLight">#FFFFFF</Color>
+    <Color x:Key="OnAccentDark">#16121F</Color>
+
+    <!-- Semantic -->
+    <Color x:Key="DangerLight">#E5484D</Color>
+    <Color x:Key="DangerDark">#FF6369</Color>
+
+    <Color x:Key="DangerSoftLight">#FDECEC</Color>
+    <Color x:Key="DangerSoftDark">#3A1E22</Color>
+
+    <Color x:Key="SuccessLight">#12805C</Color>
+    <Color x:Key="SuccessDark">#4CD9A4</Color>
+
+    <Color x:Key="SuccessSoftLight">#E2F7EF</Color>
+    <Color x:Key="SuccessSoftDark">#15322A</Color>
+
+    <!-- ============================================================
+         Градиентные кисти для акцентных элементов (логотип, кнопки)
+         ============================================================ -->
+    <LinearGradientBrush x:Key="HeroBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#6D4AFF" Offset="0.0" />
+        <GradientStop Color="#9B5CFF" Offset="0.55" />
+        <GradientStop Color="#C86BFF" Offset="1.0" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="AccentBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#6D4AFF" Offset="0.0" />
+        <GradientStop Color="#9B6BFF" Offset="1.0" />
+    </LinearGradientBrush>
+
 </ResourceDictionary>
+
+

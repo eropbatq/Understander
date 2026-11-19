@@ -1,71 +1,99 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-              x:Class="Understander.Views.HistoryPage"
-              xmlns:vm="clr-namespace:Understander.ViewModels"
-              xmlns:models="clr-namespace:Understander.Models"
-              x:DataType="vm:HistoryViewModel"
-              Title="История"
-              BackgroundColor="{DynamicResource SecondaryColor}">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Understander.Views.HistoryPage"
+             xmlns:models="clr-namespace:Understander.Models"
+             xmlns:vm="clr-namespace:Understander.ViewModels"
+             x:DataType="vm:HistoryViewModel"
+             Title="История"
+             Shell.NavBarIsVisible="False">
 
-    <Grid RowDefinitions="*,Auto">
-        <!-- Loading indicator -->
-        <ActivityIndicator Grid.Row="0"
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Padding="20,16,20,8" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <VerticalStackLayout Grid.Column="0" Spacing="4">
+                <Label Text="UNDERSTANDER" Style="{StaticResource BrandText}" />
+                <Label Text="История" Style="{StaticResource ScreenTitle}" />
+                <Label Text="{Binding History.Count, StringFormat='{0} сохранённых переводов'}"
+                       Style="{StaticResource ScreenSubtitle}" />
+            </VerticalStackLayout>
+            <Button Grid.Column="1" Text="Очистить" Command="{Binding ClearAllCommand}"
+                    Style="{StaticResource GhostDangerButton}" VerticalOptions="End" />
+        </Grid>
+
+        <!-- Content -->
+        <RefreshView Grid.Row="1" Command="{Binding LoadCommand}">
+            <CollectionView ItemsSource="{Binding History}"
+                            SelectionMode="None"
+                            VerticalScrollBarVisibility="Never"
+                            Margin="0,4,0,0">
+
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="32,70,32,32" Spacing="8"
+                                         HorizontalOptions="Center" VerticalOptions="Start">
+                        <Border WidthRequest="88" HeightRequest="88" StrokeShape="RoundRectangle 28"
+                                Stroke="Transparent" HorizontalOptions="Center"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoftLight}, Dark={StaticResource AccentSoftDark}}">
+                            <Label Text="🗂" FontSize="40" HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Border>
+                        <Label Text="Пока ничего нет" Style="{StaticResource FieldValue}"
+                               FontSize="18" HorizontalOptions="Center" Margin="0,12,0,0" />
+                        <Label Text="Переведите текст на главном экране — запись появится здесь и будет доступна офлайн."
+                               Style="{StaticResource ScreenSubtitle}"
+                               HorizontalTextAlignment="Center" MaximumWidthRequest="300" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <!-- Команды UseItem/Delete живут в HistoryViewModel,
+                     поэтому достаём их через RelativeSource по типу ViewModel. -->
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:HistoryRecord">
+                        <Border Style="{StaticResource ListCardBorder}" Margin="20,6">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=UseItemCommand, x:DataType=vm:HistoryViewModel}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="5">
+                                    <Label Text="{Binding Source}" FontSize="15"
+                                           FontFamily="OpenSansSemibold" MaxLines="2"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Result}" Style="{StaticResource SecondaryText}"
+                                           MaxLines="3" LineBreakMode="TailTruncation" />
+
+                                    <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                                        <Border Style="{StaticResource ChipBorder}" Padding="8,3">
+                                            <Label Text="{Binding Pair}" Style="{StaticResource ChipText}" />
+                                        </Border>
+                                        <Border Style="{StaticResource ChipMutedBorder}">
+                                            <Label Text="{Binding DateParsed, StringFormat='{0:dd.MM.yy · HH:mm}'}"
+                                                   Style="{StaticResource ChipTextMuted}" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <Button Grid.Column="1" Text="🗑"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=DeleteCommand, x:DataType=vm:HistoryViewModel}"
+                                        CommandParameter="{Binding .}"
+                                        Style="{StaticResource DeleteIconButton}"
+                                        VerticalOptions="Start" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <!-- Loading overlay -->
+        <ActivityIndicator Grid.Row="1"
                            IsRunning="{Binding IsBusy}"
                            IsVisible="{Binding IsBusy}"
-                           Color="{DynamicResource PrimaryColor}"
                            VerticalOptions="Center"
                            HorizontalOptions="Center" />
-
-        <!-- History list -->
-        <CollectionView Grid.Row="0"
-                        ItemsSource="{Binding History}">
-            <CollectionView.Header>
-                <HorizontalStackLayout Padding="16,8,16,4" Spacing="8" HorizontalOptions="Fill">
-                    <Label Text="Переводы" VerticalOptions="Center" FontAttributes="Bold"
-                           TextColor="{DynamicResource LabelColor}" />
-                    <Label Text="{Binding History.Count, StringFormat='{0} записей'}"
-                           VerticalOptions="Center" TextColor="Gray" FontSize="12" />
-                    <Button Text="Очистить всё" Command="{Binding ClearAllCommand}"
-                            BackgroundColor="#E74C3C" TextColor="White" FontSize="11"
-                            HorizontalOptions="End" />
-                </HorizontalStackLayout>
-            </CollectionView.Header>
-            <CollectionView.EmptyView>
-                <VerticalStackLayout Padding="32" HorizontalOptions="Center" VerticalOptions="Center">
-                    <Label Text="📝" FontSize="48" HorizontalOptions="Center" />
-                    <Label Text="История пуста" TextColor="Gray" HorizontalOptions="Center" Margin="0,8,0,0" />
-                    <Label Text="Переведите текст, чтобы запись появилась здесь"
-                           TextColor="Gray" FontSize="12" HorizontalOptions="Center" Margin="0,4,0,0" />
-                </VerticalStackLayout>
-            </CollectionView.EmptyView>
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:HistoryRecord">
-                    <Grid Padding="16,8" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Grid.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=UseItemCommand}"
-                                                  CommandParameter="{Binding .}" />
-                        </Grid.GestureRecognizers>
-                        <VerticalStackLayout Grid.Column="0" Spacing="2">
-                            <Label Text="{Binding Source}" FontAttributes="Bold" FontSize="14"
-                                   TextColor="{DynamicResource LabelColor}" />
-                            <Label Text="{Binding Result}" FontSize="13" TextColor="{DynamicResource LabelColor}" Margin="0,2,0,0" />
-                            <Label Text="{Binding Pair}" FontSize="10" TextColor="Gray" Margin="0,2,0,0" />
-                            <Label Text="{Binding Date, StringFormat='{0:dd.MM.yyyy HH:mm}'}"
-                                   FontSize="10" TextColor="Gray" Margin="0,2,0,0" />
-                        </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="🗑" Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=DeleteCommand}"
-                                CommandParameter="{Binding .}" BackgroundColor="Transparent"
-                                TextColor="#E74C3C" FontSize="16" />
-                    </Grid>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-
-        <!-- Load button at bottom -->
-        <Button Grid.Row="1" Text="Обновить историю" Command="{Binding LoadCommand}"
-                BackgroundColor="{DynamicResource PrimaryColor}" TextColor="White"
-                Margin="16,8,16,16" HeightRequest="44" />
     </Grid>
 
 </ContentPage>
+

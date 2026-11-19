@@ -12,7 +12,7 @@ public class HistoryViewModel : INotifyPropertyChanged
 {
     readonly HistoryDatabase _database;
 
-    public ObservableCollection<HistoryRecord> History { get; private set; } = new();
+    public ObservableCollection<HistoryRecord> History { get; } = new();
 
     public ICommand LoadCommand { get; }
     public ICommand DeleteCommand { get; }
@@ -42,7 +42,12 @@ public class HistoryViewModel : INotifyPropertyChanged
         try
         {
             var records = await _database.GetRecordsAsync();
-            History = new ObservableCollection<HistoryRecord>(records);
+
+            // Обновляем существующую коллекцию на месте, чтобы ItemSource не «отваливался»
+            // и RefreshView / счётчик записей корректно перерисовывались.
+            History.Clear();
+            foreach (var record in records)
+                History.Add(record);
         }
         catch (Exception ex)
         {
@@ -62,6 +67,15 @@ public class HistoryViewModel : INotifyPropertyChanged
 
     async Task ClearAll()
     {
+        if (History.Count == 0) return;
+
+        bool confirmed = await Shell.Current.DisplayAlert(
+            "Очистить историю?",
+            "Все сохранённые переводы будут удалены без возможности восстановления.",
+            "Очистить", "Отмена");
+
+        if (!confirmed) return;
+
         await _database.ClearAllAsync();
         History.Clear();
     }
