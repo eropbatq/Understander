@@ -14,15 +14,12 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                 <Label Grid.Column="0" Text="UNDERSTANDER" Style="{StaticResource BrandText}"
                        VerticalOptions="Center" />
-                <Border Grid.Column="1" Style="{StaticResource IconTileBorder}" VerticalOptions="Center">
-                    <Label Text="🌐" FontSize="24" HorizontalOptions="Center" VerticalOptions="Center" />
-                </Border>
             </Grid>
 
             <!-- Language card -->
             <Border Style="{StaticResource CardBorder}">
-                <VerticalStackLayout Spacing="10">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <VerticalStackLayout Spacing="5">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="1">
                         <Label Grid.Column="0" Text="ДВИЖОК" Style="{StaticResource FieldCaption}"
                                VerticalOptions="Center" />
                         <Picker Grid.Column="1" ItemsSource="{Binding Providers}"
@@ -55,7 +52,7 @@
             <!-- Input card -->
             <Border Style="{StaticResource CardBorder}" Padding="0">
                 <VerticalStackLayout Spacing="0">
-                    <Button Text="📋 Вставить" Command="{Binding PasteCommand}"
+                    <Button Text="Вставить" Command="{Binding PasteCommand}"
                             Style="{StaticResource SoftButton}"
                             HorizontalOptions="End" Margin="16,12,16,0" />
                     <Editor Placeholder="Введите текст…" Text="{Binding Input}"
@@ -93,7 +90,7 @@
 
                     <BoxView Style="{StaticResource Divider}" />
 
-                    <Button Text="📋 Скопировать" Command="{Binding CopyCommand}"
+                    <Button Text="Скопировать" Command="{Binding CopyCommand}"
                             Style="{StaticResource SoftButton}" HorizontalOptions="End" />
                 </VerticalStackLayout>
             </Border>
