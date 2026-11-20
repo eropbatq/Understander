@@ -34,9 +34,18 @@ public class OcrService
             var bcp47 = ToBcp47(languageCode);
             Debug.WriteLine($"[OCR] Image {bytes.Length} bytes, requested '{bcp47}'");
 
-            // На всех платформах (включая Windows) используем Plugin.Maui.OCR:
-            // метод ReadTextWithWindowsOcrAsync отсутствовал, из-за чего сборка
-            // под net9.0-windows падала с ошибкой компиляции.
+#if ANDROID
+            // Кириллицу ML Kit не умеет (только Latin/Chinese/Japanese/Korean/Devanagari),
+            // поэтому русский и другие кириллические языки распознаём офлайн-движком Tesseract.
+            if (TesseractOcr.SupportsLanguage(bcp47))
+            {
+                var tessText = await TesseractOcr.RecognizeAsync(bytes, bcp47);
+                if (!string.IsNullOrWhiteSpace(tessText))
+                    return tessText;
+
+                Debug.WriteLine("[OCR] Tesseract не распознал текст, пробуем ML Kit");
+            }
+#endif
             return await ReadTextWithPluginAsync(bytes, bcp47);
         }
         catch (Exception ex)

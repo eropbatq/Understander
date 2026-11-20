@@ -54,6 +54,10 @@
 		<RunAOTCompilation>false</RunAOTCompilation>
 		<!-- Встраиваем сборки в APK, чтобы Debug-APK можно было ставить вручную (sideload) -->
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+
+		<!-- Предупреждения из автоматически сгенерированных биндингов Tesseract4Android
+		     (CS0114 — скрытие Object.Equals/ToString, CS8766 — nullable в сгенерированном коде). -->
+		<NoWarn>$(NoWarn);CS0114;CS8766</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -85,6 +89,15 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
 		<PackageReference Include="Plugin.Maui.OCR" Version="1.1.1" />
+	</ItemGroup>
+
+	<!-- Android: офлайн-OCR с поддержкой кириллицы.
+	     ML Kit Text Recognition v2 умеет только Latin/Chinese/Devanagari/Japanese/Korean,
+	     поэтому для русского языка используется Tesseract4Android (AAR из JitPack,
+	     C#-биндинги генерируются автоматически при сборке).
+	     Модели распознавания лежат в Resources/Raw/tessdata (MauiAsset). -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<AndroidLibrary Include="libs\tesseract4android-4.9.0.aar" />
 	</ItemGroup>
 
 	<ItemGroup>

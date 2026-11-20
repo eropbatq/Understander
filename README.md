@@ -34,6 +34,9 @@
 * **Платформа и фреймворк:** .NET 9 (.NET MAUI / Android)
 * **Среда разработки (IDE):** Visual Studio 2022 (версия 17.12+)
 * **База данных:** SQLite (`sqlite-net-pcl` / Entity Framework Core)
+  * **OCR (распознавание текста с фото):**
+  * **ML Kit Text Recognition v2** через `Plugin.Maui.OCR` — латиница и другие поддерживаемые ML Kit письменности
+  * **Tesseract4Android 4.9** — кириллица (русский), т.к. ML Kit её не поддерживает. Модели `rus`/`eng` лежат в `Resources/Raw/tessdata` и работают офлайн
 * **API Перевода:** 
   * [MyMemory Translation API](https://translated.net) (основной открытый API для переводов)
   * Google Translate API (резервный / открытый эндпоинт)
