@@ -3,7 +3,7 @@ using Android.Runtime;
 
 namespace Understander
 {
-    [Application]
+    [Application(Debuggable = true, AllowTaskReparenting = true)]
     public class MainApplication : MauiApplication
     {
         public MainApplication(IntPtr handle, JniHandleOwnership ownership)

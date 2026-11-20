@@ -39,14 +39,24 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+
+		<!-- Completely disable Android linker for Release -->
+		<AndroidLinkTool>none</AndroidLinkTool>
+		<AndroidEnableSGConver>false</AndroidEnableSGConver>
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\icon.png" ForegroundFile="Resources\AppIcon\icon.png" Color="#5B45E0" />
+		<MauiIcon Include="Resources\AppIcon\icon.png" Color="#5B45E0" />
 
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#5B45E0" BaseSize="128,128" />
+
+		<!-- Android resources -->
+		<AndroidResource Include="Platforms\Android\Resources\mipmap-*\*.*" />
+		<AndroidResource Include="Platforms\Android\Resources\mipmap-anydpi-v26\*.*" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />

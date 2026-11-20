@@ -104,6 +104,7 @@
     <Style TargetType="Border">
         <Setter Property="Stroke" Value="Transparent" />
         <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 0" />
     </Style>
 
     <!-- Текст по умолчанию -->

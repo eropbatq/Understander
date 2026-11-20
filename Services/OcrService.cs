@@ -141,4 +141,4 @@ public class OcrService
 
         return (double)matched / letters.Length;
     }
-
+}

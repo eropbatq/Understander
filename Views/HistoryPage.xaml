@@ -33,7 +33,8 @@
                     <VerticalStackLayout Padding="32,70,32,32" Spacing="8"
                                          HorizontalOptions="Center" VerticalOptions="Start">
                         <Border WidthRequest="88" HeightRequest="88" StrokeShape="RoundRectangle 28"
-                                Stroke="Transparent" HorizontalOptions="Center"
+                                Stroke="Transparent" StrokeThickness="0"
+                                HorizontalOptions="Center"
                                 BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoftLight}, Dark={StaticResource AccentSoftDark}}">
                             <Label Text="🗂" FontSize="40" HorizontalOptions="Center" VerticalOptions="Center" />
                         </Border>
@@ -49,7 +50,7 @@
                      поэтому достаём их через RelativeSource по типу ViewModel. -->
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:HistoryRecord">
-                        <Border Style="{StaticResource ListCardBorder}" Margin="20,6">
+                        <Border Style="{StaticResource ListCardBorder}" Margin="20,6" StrokeThickness="0" Stroke="Transparent">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=UseItemCommand, x:DataType=vm:HistoryViewModel}"
@@ -65,10 +66,10 @@
                                            MaxLines="3" LineBreakMode="TailTruncation" />
 
                                     <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
-                                        <Border Style="{StaticResource ChipBorder}" Padding="8,3">
+                                        <Border Style="{StaticResource ChipBorder}" Padding="8,3" StrokeThickness="0" Stroke="Transparent">
                                             <Label Text="{Binding Pair}" Style="{StaticResource ChipText}" />
                                         </Border>
-                                        <Border Style="{StaticResource ChipMutedBorder}">
+                                        <Border Style="{StaticResource ChipMutedBorder}" StrokeThickness="0" Stroke="Transparent">
                                             <Label Text="{Binding DateParsed, StringFormat='{0:dd.MM.yy · HH:mm}'}"
                                                    Style="{StaticResource ChipTextMuted}" />
                                         </Border>

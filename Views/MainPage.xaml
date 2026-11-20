@@ -17,7 +17,7 @@
             </Grid>
 
             <!-- Language card -->
-            <Border Style="{StaticResource CardBorder}">
+            <Border Style="{StaticResource CardBorder}" StrokeThickness="0" Stroke="Transparent">
                 <VerticalStackLayout Spacing="5">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="1">
                         <Label Grid.Column="0" Text="ДВИЖОК" Style="{StaticResource FieldCaption}"
@@ -50,7 +50,7 @@
             </Border>
 
             <!-- Input card -->
-            <Border Style="{StaticResource CardBorder}" Padding="0">
+            <Border Style="{StaticResource CardBorder}" Padding="0" StrokeThickness="0" Stroke="Transparent">
                 <VerticalStackLayout Spacing="0">
                     <Button Text="Вставить" Command="{Binding PasteCommand}"
                             Style="{StaticResource SoftButton}"
@@ -75,12 +75,12 @@
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" HeightRequest="24" />
 
             <!-- Result card -->
-            <Border Style="{StaticResource CardBorder}" IsVisible="{Binding HasResult}">
+            <Border Style="{StaticResource CardBorder}" IsVisible="{Binding HasResult}" StrokeThickness="0" Stroke="Transparent">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <Label Grid.Column="0" Text="ПЕРЕВОД" Style="{StaticResource SectionTitle}"
                                VerticalOptions="Center" />
-                        <Border Grid.Column="1" Style="{StaticResource ChipBorder}">
+                        <Border Grid.Column="1" Style="{StaticResource ChipBorder}" StrokeThickness="0" Stroke="Transparent">
                             <Label Text="{Binding Pair}" Style="{StaticResource ChipText}" />
                         </Border>
                     </Grid>

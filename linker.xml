@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<linker>
+  <assembly fullname="Understander">
+    <type fullname="Understander.MainActivity" preserve="all" />
+    <type fullname="Understander.MainApplication" preserve="all" />
+  </assembly>
+  <assembly fullname="Microsoft.Maui.Controls">
+    <type fullname="Microsoft.Maui.Controls.Shell" preserve="all" />
+  </assembly>
+</linker>
