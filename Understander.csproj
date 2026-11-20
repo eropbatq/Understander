@@ -40,10 +40,19 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 
-		<!-- Completely disable Android linker for Release -->
-		<AndroidLinkTool>none</AndroidLinkTool>
-		<AndroidEnableSGConver>false</AndroidEnableSGConver>
+	</PropertyGroup>
+
+	<!-- Android: отключаем тримминг/R8 (в Release он включён по умолчанию).
+	     Иначе reflection-зависимые части (sqlite-net, System.Text.Json, XAML)
+	     могут быть вырезаны линковщиком и приложение упадёт на старте.
+	     ВАЖНО: <AndroidLinkTool> принимает только "", "proguard" и "r8";
+	     значение "none" невалидно и неявно включает ProGuard. -->
+	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<PublishTrimmed>false</PublishTrimmed>
+		<AndroidLinkMode>None</AndroidLinkMode>
 		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<!-- Встраиваем сборки в APK, чтобы Debug-APK можно было ставить вручную (sideload) -->
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 	</PropertyGroup>
 

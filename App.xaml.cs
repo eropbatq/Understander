@@ -4,6 +4,10 @@
     {
         public App()
         {
+            // КРИТИЧНО: без этого вызова Application.Resources остаётся пустым,
+            // и любой {StaticResource ...} на страницах (BrandText, CardBorder и т.д.)
+            // бросает XamlParseException -> приложение падает сразу после сплэша.
+            InitializeComponent();
         }
 
         protected override Window CreateWindow(IActivationState? activationState)

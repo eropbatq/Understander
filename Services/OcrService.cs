@@ -34,11 +34,10 @@ public class OcrService
             var bcp47 = ToBcp47(languageCode);
             Debug.WriteLine($"[OCR] Image {bytes.Length} bytes, requested '{bcp47}'");
 
-#if WINDOWS
-            return await ReadTextWithWindowsOcrAsync(bytes, bcp47);
-#else
+            // На всех платформах (включая Windows) используем Plugin.Maui.OCR:
+            // метод ReadTextWithWindowsOcrAsync отсутствовал, из-за чего сборка
+            // под net9.0-windows падала с ошибкой компиляции.
             return await ReadTextWithPluginAsync(bytes, bcp47);
-#endif
         }
         catch (Exception ex)
         {
