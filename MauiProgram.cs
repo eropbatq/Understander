@@ -26,6 +26,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<HttpClient>();
         builder.Services.AddSingleton<ITranslator, GoogleTranslator>();
         builder.Services.AddSingleton<ITranslator, MyMemoryTranslator>();
+        builder.Services.AddSingleton<ITranslator, LaraTranslator>();
         builder.Services.AddSingleton<OcrService>();
         builder.Services.AddSingleton<HistoryViewModel>();
 

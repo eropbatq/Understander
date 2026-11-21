@@ -138,45 +138,24 @@ public partial class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
-            string result;
-            string pair;
-            var lastError = (Exception?)null;
+            var result = await Provider.TranslateAsync(Input, From.Code, To.Code);
+            var pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {Provider.Name}";
 
-            // Try selected provider first, then fallback to others
-            foreach (var provider in Providers)
+            Result = result;
+            Pair = pair;
+            History.Insert(0, new(Input, result, pair));
+
+            // Save to database
+            try
             {
-                try
+                await _database.InsertRecordAsync(new HistoryRecord
                 {
-                    result = await provider.TranslateAsync(Input, From.Code, To.Code);
-                    pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {provider.Name}";
-                    Provider = provider; // Update selected provider on success
-                    Pair = pair;
-                    Result = result; // <-- показать результат на экране
-                    History.Insert(0, new(Input, result, pair));
-
-                    // Save to database
-                    try
-                    {
-                        await _database.InsertRecordAsync(new HistoryRecord
-                        {
-                            Source = Input,
-                            Result = result,
-                            Pair = pair
-                        });
-                    }
-                    catch { /* Silent fail */ }
-
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex;
-                    // Continue to next provider
-                }
+                    Source = Input,
+                    Result = result,
+                    Pair = pair
+                });
             }
-
-            // All providers failed
-            throw lastError ?? new Exception("Все переводчики недоступны");
+            catch { /* Silent fail */ }
         }
         catch (Exception ex)
         {
