@@ -14,6 +14,9 @@
         <Tab Title="История" Icon="tab_second.png">
             <ShellContent ContentTemplate="{DataTemplate views:HistoryPage}" Route="Views.HistoryPage" />
         </Tab>
+        <Tab Title="Режим диалога" Icon="tab_dialogue.svg">
+            <ShellContent ContentTemplate="{DataTemplate views:DialoguePage}" Route="Views.DialoguePage" />
+        </Tab>
     </TabBar>
 
 </Shell>

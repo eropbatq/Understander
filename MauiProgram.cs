@@ -4,6 +4,10 @@ using Understander.Services;
 using Understander.ViewModels;
 using Understander.Views;
 
+#if ANDROID
+using Android.App;
+#endif
+
 namespace Understander;
 
 public static class MauiProgram
@@ -34,6 +38,21 @@ public static class MauiProgram
         builder.Services.AddSingleton<MainPage>();
 
         builder.Services.AddSingleton<HistoryPage>();
+
+        builder.Services.AddSingleton<DialogueViewModel>();
+        builder.Services.AddSingleton<DialoguePage>();
+
+#if ANDROID
+        builder.Services.AddSingleton<ISpeechRecognizer>(sp =>
+        {
+            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            if (activity != null)
+                return new AndroidSpeechRecognizer(activity);
+            return new NoOpSpeechRecognizer();
+        });
+#else
+        builder.Services.AddSingleton<ISpeechRecognizer, NoOpSpeechRecognizer>();
+#endif
 
         return builder.Build();
     }

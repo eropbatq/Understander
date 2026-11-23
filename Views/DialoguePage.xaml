@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Understander.Views.DialoguePage"
+             xmlns:vm="clr-namespace:Understander.ViewModels"
+             x:DataType="vm:DialogueViewModel"
+             BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Language bar (compact, top) -->
+        <Border Grid.Row="0" Style="{StaticResource LanguageBarBorder}" Margin="16,12,16,0">
+            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8" Padding="12,8">
+                <Label Grid.Column="0" Text="{Binding Person1Lang.Name}"
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}"
+                       VerticalOptions="Center" HorizontalOptions="Start" />
+                <Label Grid.Column="1" Text="⇄" VerticalOptions="Center" HorizontalOptions="Center"
+                       FontSize="16" TextColor="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSwapTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Label Grid.Column="2" Text="{Binding Person2Lang.Name}"
+                       FontSize="15" FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}"
+                       VerticalOptions="Center" HorizontalOptions="End" />
+            </Grid>
+        </Border>
+
+        <!-- Messages list -->
+        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Always">
+            <CollectionView ItemsSource="{Binding Messages}" VerticalScrollBarVisibility="Never"
+                            Margin="16,8,16,0">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DialogueMessage">
+                        <Frame Style="{StaticResource MessageFrame}"
+                               HasShadow="False"
+                               Padding="0"
+                               Margin="0,8,0,0"
+                               BackgroundColor="Transparent"
+                               BorderColor="{AppThemeBinding Light={StaticResource SurfaceAltLight}, Dark={StaticResource SurfaceAltDark}}">
+                            
+                            <!-- Language direction label -->
+                            <Label Text="{Binding FromLang, Converter={StaticResource CodeToNameConverter}}"
+                                   Style="{StaticResource MessageLangLabel}" />
+
+                            <!-- Original text (large) -->
+                            <Label Text="{Binding Text}" Style="{StaticResource MessageOriginalText}" />
+
+                            <!-- Translation (large, below original) -->
+                            <Label Text="{Binding TranslatedText}" Style="{StaticResource MessageTranslationText}"
+                                   IsVisible="{Binding TranslatedText}" />
+
+                            <!-- Separator -->
+                            <BoxView Style="{StaticResource MessageSeparator}" />
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Padding="40">
+                        <Label Text="💬" FontSize="48" HorizontalOptions="Center" />
+                        <Label Text="Нажмите на микрофон и говорите"
+                               Style="{StaticResource SecondaryText}"
+                               HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </ScrollView>
+
+        <!-- Loading indicator -->
+        <ActivityIndicator Grid.Row="1" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           HeightRequest="24" WidthRequest="24"
+                           HorizontalOptions="Center" VerticalOptions="End" Margin="0,0,0,20"
+                           Color="{AppThemeBinding Light={StaticResource AccentLight}, Dark={StaticResource AccentDark}}" />
+
+        <!-- PTT button (bottom center) -->
+        <Grid Grid.Row="2" HorizontalOptions="Center" VerticalOptions="End" Margin="0,0,0,32">
+            <VerticalStackLayout HorizontalOptions="Center" Spacing="8">
+                <!-- PTT Button -->
+                <Button x:Name="MicButton"
+                        Text="🎤"
+                        Style="{StaticResource MicButton}"
+                        Pressed="OnMicPressed"
+                        Released="OnMicReleased" />
+                <!-- Hint -->
+                <Label Text="Нажмите на значок микрофона, чтобы начать"
+                       Style="{StaticResource FieldCaption}"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
