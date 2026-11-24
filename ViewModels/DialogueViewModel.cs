@@ -18,7 +18,7 @@ public class DialogueViewModel : INotifyPropertyChanged
     readonly IReadOnlyList<ITranslator> _translators;
     readonly ISpeechRecognizer _speechRecognizer;
 
-    Task<string>? _listeningTask;
+    Task? _recordingOperation;
 
     private Lang _person1Lang = null!;
     private Lang _person2Lang = null!;
@@ -77,8 +77,7 @@ public class DialogueViewModel : INotifyPropertyChanged
         set { if (_statusText == value) return; _statusText = value; OnPropertyChanged(); }
     }
 
-    public ICommand StartRecordingCommand { get; }
-    public ICommand StopRecordingCommand { get; }
+    public ICommand ToggleRecordingCommand { get; }
     public ICommand ClearCommand { get; }
 
     public DialogueViewModel(IEnumerable<ITranslator> translators, ISpeechRecognizer speechRecognizer)
@@ -89,8 +88,7 @@ public class DialogueViewModel : INotifyPropertyChanged
         Person1Lang = Langs[0];
         Person2Lang = Langs[1];
 
-        StartRecordingCommand = new Command(async () => await StartRecordingAsync());
-        StopRecordingCommand = new Command(async () => await StopRecordingAsync());
+        ToggleRecordingCommand = new Command(async () => await ToggleRecordingAsync());
         ClearCommand = new Command(ClearDialogue);
     }
 
@@ -104,9 +102,17 @@ public class DialogueViewModel : INotifyPropertyChanged
     // Запись / распознавание
     // ------------------------------------------------------------------
 
-    async Task StartRecordingAsync()
+    async Task ToggleRecordingAsync()
     {
-        if (IsRecording || IsBusy) return;
+        if (IsBusy) return;
+
+        if (IsRecording)
+        {
+            IsBusy = true;
+            StatusText = "Распознаю…";
+            _speechRecognizer.StopListening();
+            return;
+        }
 
         if (!_speechRecognizer.IsAvailable)
         {
@@ -129,50 +135,30 @@ public class DialogueViewModel : INotifyPropertyChanged
         {
             IsRecording = true;
             StatusText = $"Говорите… · {ActiveLang.Name}";
-
-            _listeningTask = _speechRecognizer.StartListeningAsync(ActiveLang.Code);
+            _recordingOperation = FinishRecordingAsync(ActiveLang.Code, ActiveSpeaker);
+            await _recordingOperation;
         }
         catch (Exception ex)
         {
             IsRecording = false;
-            _listeningTask = null;
+            _recordingOperation = null;
             StatusText = IdleStatus;
             await ShowAlertAsync("Микрофон", ex.Message);
         }
     }
 
-    async Task StopRecordingAsync()
+    async Task FinishRecordingAsync(string languageCode, int speaker)
     {
-        if (!IsRecording) return;
-
-        IsRecording = false;
-
-        var task = _listeningTask;
-        _listeningTask = null;
-
-        // Просим движок отдать финальный результат по уже записанному фрагменту.
-        try { _speechRecognizer.StopListening(); } catch { /* игнорируем */ }
-
-        if (task is null)
-        {
-            StatusText = IdleStatus;
-            return;
-        }
-
-        IsBusy = true;
-        StatusText = "Распознаю…";
-
         try
         {
-            var text = (await task)?.Trim();
+            var text = (await _speechRecognizer.StartListeningAsync(languageCode))?.Trim();
+            IsRecording = false;
 
             if (string.IsNullOrWhiteSpace(text))
             {
                 StatusText = "Речь не распознана — попробуйте ещё раз";
                 return;
             }
-
-            var speaker = ActiveSpeaker;
 
             StatusText = "Перевожу…";
             await ProcessTextAsync(text, speaker);
@@ -183,6 +169,7 @@ public class DialogueViewModel : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
         {
+            IsRecording = false;
             StatusText = "Не удалось распознать речь — попробуйте ещё раз";
         }
         catch (Exception ex)
@@ -192,6 +179,8 @@ public class DialogueViewModel : INotifyPropertyChanged
         }
         finally
         {
+            IsRecording = false;
+            _recordingOperation = null;
             IsBusy = false;
         }
     }
@@ -206,14 +195,14 @@ public class DialogueViewModel : INotifyPropertyChanged
         IsRecording = false;
         IsBusy = false;
 
-        var task = _listeningTask;
-        _listeningTask = null;
+        var operation = _recordingOperation;
+        _recordingOperation = null;
 
         try { _speechRecognizer.StopListening(); } catch { /* игнорируем */ }
 
         // Задача брошена — исключение нужно прочитать, иначе оно всплывёт
         // как UnobservedTaskException при сборке мусора.
-        task?.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+        operation?.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
 
         StatusText = IdleStatus;
     }

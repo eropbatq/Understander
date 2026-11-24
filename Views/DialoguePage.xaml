@@ -81,7 +81,7 @@
                 <Button x:Name="MicButton"
                         Text="🎤"
                         Style="{StaticResource MicButton}"
-                        Pressed="OnMicPressed">
+                        Command="{Binding ToggleRecordingCommand}">
                     <Button.Triggers>
                         <!-- Пока идёт запись, кнопка красная -->
                         <DataTrigger TargetType="Button" Binding="{Binding IsRecording}" Value="True">

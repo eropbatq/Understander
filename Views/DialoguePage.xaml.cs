@@ -19,24 +19,6 @@ public partial class DialoguePage : ContentPage
         };
     }
 
-    void OnMicPressed(object? sender, EventArgs e)
-    {
-        MicButton.Scale = 1.12;
-
-        if (BindingContext is not DialogueViewModel vm) return;
-
-        // Режим «тап-тап»: первое нажатие запускает запись, второе завершает её.
-        // Не останавливаем запись в Released: на эмуляторе отпускание пальца
-        // после обычного нажатия иначе преждевременно обрывало аудиофрагмент.
-        if (vm.IsRecording)
-        {
-            vm.StopRecordingCommand.Execute(null);
-            return;
-        }
-
-        vm.StartRecordingCommand.Execute(null);
-    }
-
     void OnSwapTapped(object? sender, TappedEventArgs e)
     {
         if (BindingContext is DialogueViewModel vm)

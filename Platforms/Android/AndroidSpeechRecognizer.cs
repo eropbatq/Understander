@@ -6,353 +6,174 @@ using Microsoft.Maui.ApplicationModel;
 
 namespace Understander.Services;
 
-/// <summary>
-/// Android-распознавание речи через нативный SpeechRecognizer.
-/// Работает офлайн через локальный движок на устройстве.
-/// </summary>
-public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
+/// <summary>Одна простая сессия системного Android SpeechRecognizer.</summary>
+public sealed class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
 {
     internal const string Tag = "Understander.Speech";
+    static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(12);
 
-    /// <summary>Сколько ждём, пока движок начнёт отдавать результат.</summary>
-    static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(60);
-
-    /// <summary>Сколько ждём финальный результат после StopListening.</summary>
-    static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(10);
-
-    readonly bool _isAvailable;
-    readonly object _sync = new();
-
+    readonly object _gate = new();
     SpeechRecognizer? _recognizer;
-    TaskCompletionSource<string>? _tcs;
-    string _partialText = "";
+    TaskCompletionSource<string>? _result;
     int _session;
     bool _disposed;
 
-    public bool IsAvailable => _isAvailable && !_disposed;
+    public bool IsAvailable { get; }
 
     public AndroidSpeechRecognizer()
     {
-        _isAvailable = CheckAvailability();
+        try { IsAvailable = SpeechRecognizer.IsRecognitionAvailable(Android.App.Application.Context); }
+        catch (Exception ex) { Log.Warn(Tag, $"Service check failed: {ex.Message}"); IsAvailable = false; }
     }
 
-    static bool CheckAvailability()
-    {
-        try
-        {
-            return SpeechRecognizer.IsRecognitionAvailable(Android.App.Application.Context);
-        }
-        catch (Exception ex)
-        {
-            Log.Warn(Tag, $"IsRecognitionAvailable failed: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Запускает распознавание речи. Возвращает Task, который завершится,
-    /// когда движок отдаст результат (или произойдёт ошибка/таймаут).
-    /// </summary>
     public async Task<string> StartListeningAsync(string languageCode)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(AndroidSpeechRecognizer));
+        if (_disposed) throw new ObjectDisposedException(nameof(AndroidSpeechRecognizer));
+        if (!IsAvailable) throw new NotSupportedException("Системный сервис распознавания речи недоступен.");
 
-        Context context = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity
-                          ?? Android.App.Application.Context;
-
-        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        int sessionId;
-
-        lock (_sync)
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int session;
+        lock (_gate)
         {
-            // Если прошлая сессия по какой-то причине не завершилась — закрываем её,
-            // чтобы ожидающий код не остался висеть вечно.
-            _tcs?.TrySetCanceled();
-            sessionId = ++_session;
-            _tcs = tcs;
-            _partialText = "";
+            if (_result is not null) throw new InvalidOperationException("Распознавание уже запущено.");
+            session = ++_session;
+            _result = completion;
         }
 
-        // SpeechRecognizer обязан создаваться и запускаться на главном потоке.
-        await MainThread.InvokeOnMainThreadAsync(() => StartOnMainThread(context, languageCode, sessionId));
+        try { await MainThread.InvokeOnMainThreadAsync(() => StartOnMainThread(languageCode, session)); }
+        catch (Exception ex) { Finish(session, null, ex); }
 
-        // Страховка: движок не должен «подвешивать» кнопку записи.
-        _ = TimeoutAsync(sessionId, StartTimeout);
-
-        Log.Info(Tag, "[Understander] Speech recognition started");
-        return await tcs.Task;
+        _ = TimeoutAsync(session);
+        return await completion.Task;
     }
 
-    void StartOnMainThread(Context context, string languageCode, int sessionId)
+    void StartOnMainThread(string languageCode, int session)
     {
-        if (sessionId != _session) return;
+        if (!IsCurrent(session)) return;
 
         try
         {
-            ReleaseRecognizer();
+            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
+            var recognizer = SpeechRecognizer.CreateSpeechRecognizer(context)
+                ?? throw new InvalidOperationException("Не удалось создать сервис распознавания речи.");
+            recognizer.SetRecognitionListener(new Listener(this, session));
 
-            var recognizer = SpeechRecognizer.CreateSpeechRecognizer(context);
+            lock (_gate)
+            {
+                if (!IsCurrent(session)) { recognizer.Destroy(); return; }
+                _recognizer = recognizer;
+            }
 
-            if (recognizer is null)
-                throw new InvalidOperationException("Системный сервис распознавания речи недоступен.");
-
-            recognizer.SetRecognitionListener(new SpeechRecognitionListener(this, sessionId));
-            _recognizer = recognizer;
-
+            var locale = ToLocale(languageCode);
             var intent = new Intent(RecognizerIntent.ActionRecognizeSpeech);
             intent.PutExtra(RecognizerIntent.ExtraLanguageModel, RecognizerIntent.LanguageModelFreeForm);
-            var locale = Bcp47Code(languageCode);
             intent.PutExtra(RecognizerIntent.ExtraLanguage, locale);
             intent.PutExtra(RecognizerIntent.ExtraLanguagePreference, locale);
-            intent.PutExtra(RecognizerIntent.ExtraMaxResults, 3);
-            intent.PutExtra(RecognizerIntent.ExtraPartialResults, true);
-            intent.PutExtra(RecognizerIntent.ExtraSpeechInputCompleteSilenceLengthMillis, 1500L);
-            intent.PutExtra(RecognizerIntent.ExtraSpeechInputPossiblyCompleteSilenceLengthMillis, 1000L);
-            // Не ограничиваем распознавание офлайн: на эмуляторе и на части
-            // телефонов Google Speech Services отдают результат через сеть.
-            // Установленные языковые пакеты при этом продолжают работать офлайн.
+            intent.PutExtra(RecognizerIntent.ExtraPartialResults, false);
+            intent.PutExtra(RecognizerIntent.ExtraMaxResults, 1);
             intent.PutExtra(RecognizerIntent.ExtraPreferOffline, false);
             intent.PutExtra(RecognizerIntent.ExtraCallingPackage, context.PackageName);
-
             recognizer.StartListening(intent);
+            Log.Info(Tag, $"Started: {locale}");
         }
-        catch (Exception ex)
-        {
-            Log.Error(Tag, $"[Understander] Failed to start: {ex.Message}");
-            CompleteSession(sessionId, null, $"Не удалось запустить распознавание речи: {ex.Message}");
-        }
+        catch (Exception ex) { Finish(session, null, ex); }
     }
 
-    /// <summary>
-    /// Просит движок отдать финальный результат. Полученный текст завершит Task.
-    /// </summary>
     public void StopListening()
     {
-        int sessionId;
-        lock (_sync)
-        {
-            sessionId = _session;
-        }
-
+        int session;
+        lock (_gate) session = _session;
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            try
-            {
-                _recognizer?.StopListening();
-                Log.Info(Tag, "[Understander] StopListening requested");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(Tag, $"[Understander] Error stopping: {ex.Message}");
-            }
+            if (!IsCurrent(session)) return;
+            try { _recognizer?.StopListening(); Log.Info(Tag, "Stop requested"); }
+            catch (Exception ex) { Finish(session, null, ex); }
         });
-
-        // Некоторые движки не отвечают на StopListening — подстрахуемся таймером,
-        // иначе TCS никогда не завершится.
-        _ = TimeoutAsync(sessionId, ResultTimeout);
     }
 
-    async Task TimeoutAsync(int sessionId, TimeSpan delay)
+    async Task TimeoutAsync(int session)
     {
-        await Task.Delay(delay);
-
-        lock (_sync)
-        {
-            if (sessionId != _session || _tcs is null || _tcs.Task.IsCompleted) return;
-        }
-
-        Log.Warn(Tag, $"[Understander] Recognition timeout ({delay.TotalSeconds:F0}s)");
-        CompleteSession(sessionId, null, "Речь не распознана. Попробуйте ещё раз.");
+        await Task.Delay(ResultTimeout);
+        if (IsCurrent(session)) Finish(session, null, new TimeoutException("Сервис распознавания не вернул результат."));
     }
 
-    /// <summary>Запоминает промежуточный результат — он пригодится, если финального не будет.</summary>
-    internal void ReportPartial(int sessionId, string text)
+    bool IsCurrent(int session)
     {
-        lock (_sync)
-        {
-            if (sessionId != _session) return;
-            _partialText = text;
-        }
+        lock (_gate) return _result is not null && _session == session;
     }
 
-    /// <summary>
-    /// Завершает текущую сессию: отдаёт распознанный текст (или последний
-    /// промежуточный) и освобождает SpeechRecognizer.
-    /// </summary>
-    internal void CompleteSession(int sessionId, string? text, string? error)
+    internal void OnResults(int session, Bundle? bundle)
     {
-        TaskCompletionSource<string>? tcs;
-        string partial;
-        lock (_sync)
-        {
-            if (sessionId != _session) return;
-            tcs = _tcs;
-            _tcs = null;
-            partial = _partialText;
-        }
+        var matches = bundle?.GetStringArrayList(RecognizerIntent.ExtraResults);
+        Finish(session, matches?.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)), null);
+    }
 
-        ReleaseRecognizer();
-
-        if (tcs is null || tcs.Task.IsCompleted) return;
-
-        var final = !string.IsNullOrWhiteSpace(text) ? text.Trim() : partial.Trim();
-
-        if (!string.IsNullOrWhiteSpace(final))
-            tcs.TrySetResult(final);
-        else if (error is null || error.Contains("не распознана", StringComparison.OrdinalIgnoreCase))
-            // NoMatch/SpeechTimeout — это обычный пустой результат, а не ошибка
-            // системного сервиса. ViewModel сама покажет пользователю подсказку.
-            tcs.TrySetResult(string.Empty);
+    internal void OnError(int session, SpeechRecognizerError error)
+    {
+        Log.Warn(Tag, $"Recognition error: {error}");
+        if (error is SpeechRecognizerError.NoMatch or SpeechRecognizerError.SpeechTimeout)
+            Finish(session, string.Empty, null);
         else
-            tcs.TrySetException(new InvalidOperationException(
-                error ?? "Речь не распознана. Попробуйте ещё раз."));
+            Finish(session, null, new InvalidOperationException(ErrorMessage(error)));
     }
 
-    void ReleaseRecognizer()
+    void Finish(int session, string? text, Exception? error)
     {
-        var recognizer = _recognizer;
-        _recognizer = null;
-
-        if (recognizer is null) return;
-
-        void Destroy()
+        TaskCompletionSource<string>? completion;
+        SpeechRecognizer? recognizer;
+        lock (_gate)
         {
-            try
-            {
-                recognizer.SetRecognitionListener(null);
-                recognizer.Destroy();
-            }
-            catch (Exception ex) { Log.Warn(Tag, $"[Understander] Error destroying: {ex.Message}"); }
+            if (_result is null || _session != session) return;
+            completion = _result; _result = null;
+            recognizer = _recognizer; _recognizer = null;
         }
 
-        // Не оставляем старый recognizer в очереди UI: новый сеанс должен
-        // запускаться только после фактического освобождения старого.
-        if (MainThread.IsMainThread)
-            Destroy();
-        else
-            MainThread.InvokeOnMainThreadAsync(Destroy).GetAwaiter().GetResult();
+        void Cleanup()
+        {
+            try { recognizer?.SetRecognitionListener(null); recognizer?.Destroy(); }
+            catch (Exception ex) { Log.Warn(Tag, $"Cleanup failed: {ex.Message}"); }
+        }
+        if (MainThread.IsMainThread) Cleanup(); else MainThread.BeginInvokeOnMainThread(Cleanup);
+
+        if (error is not null) completion.TrySetException(error);
+        else completion.TrySetResult(text?.Trim() ?? string.Empty);
     }
+
+    static string ToLocale(string code) => code.ToLowerInvariant() switch
+    {
+        "ru" or "ru-ru" => "ru-RU", "en" or "en-us" => "en-US",
+        "de" => "de-DE", "fr" => "fr-FR", "es" => "es-ES",
+        "it" => "it-IT", "tr" => "tr-TR", "zh" => "zh-CN", _ => code
+    };
+
+    static string ErrorMessage(SpeechRecognizerError error) => error switch
+    {
+        SpeechRecognizerError.Audio => "Ошибка записи звука. Проверьте доступ к микрофону.",
+        SpeechRecognizerError.Network or SpeechRecognizerError.NetworkTimeout => "Нет соединения с сервисом распознавания речи.",
+        SpeechRecognizerError.RecognizerBusy => "Сервис распознавания занят.",
+        SpeechRecognizerError.InsufficientPermissions => "Нет разрешения на микрофон.",
+        _ => $"Ошибка распознавания речи: {error}."
+    };
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
-        _session++;
-        _tcs = null;
-        ReleaseRecognizer();
+        int session;
+        lock (_gate) { if (_disposed) return; _disposed = true; session = _session; }
+        Finish(session, null, new System.OperationCanceledException("Распознавание остановлено."));
     }
 
-    static string Bcp47Code(string code)
+    sealed class Listener : Java.Lang.Object, IRecognitionListener
     {
-        return code.ToLowerInvariant() switch
-        {
-            "ru" => "ru-RU",
-            "en" => "en-US",
-            "de" => "de-DE",
-            "fr" => "fr-FR",
-            "es" => "es-ES",
-            "it" => "it-IT",
-            "tr" => "tr-TR",
-            "zh" => "zh-Hans",
-            _ => code
-        };
+        readonly AndroidSpeechRecognizer _owner; readonly int _session;
+        public Listener(AndroidSpeechRecognizer owner, int session) { _owner = owner; _session = session; }
+        public void OnResults(Bundle? results) => _owner.OnResults(_session, results);
+        public void OnError(SpeechRecognizerError error) => _owner.OnError(_session, error);
+        public void OnReadyForSpeech(Bundle? parameters) { }
+        public void OnBeginningOfSpeech() { }
+        public void OnRmsChanged(float rmsdB) { }
+        public void OnBufferReceived(byte[]? buffer) { }
+        public void OnEndOfSpeech() { }
+        public void OnPartialResults(Bundle? partialResults) { }
+        public void OnEvent(int eventType, Bundle? parameters) { }
     }
 }
-
-/// <summary>
-/// RecognitionListener для SpeechRecognizer.
-/// Не управляет жизненным циклом recognizer'а — только сообщает результаты владельцу.
-/// </summary>
-sealed class SpeechRecognitionListener : Java.Lang.Object, Android.Speech.IRecognitionListener
-{
-    readonly AndroidSpeechRecognizer _owner;
-    readonly int _sessionId;
-
-    public SpeechRecognitionListener(AndroidSpeechRecognizer owner, int sessionId)
-    {
-        _owner = owner;
-        _sessionId = sessionId;
-    }
-
-    public void OnReadyForSpeech(Bundle? readyEvent) =>
-        Log.Info(AndroidSpeechRecognizer.Tag, "[Understander] Ready for speech");
-
-    public void OnBeginningOfSpeech() =>
-        Log.Info(AndroidSpeechRecognizer.Tag, "[Understander] Beginning of speech");
-
-    public void OnRmsChanged(float rmsAmplitude) { }
-
-    public void OnBufferReceived(byte[]? buffer) { }
-
-    public void OnEndOfSpeech() =>
-        Log.Info(AndroidSpeechRecognizer.Tag, "[Understander] End of speech");
-
-    public void OnEvent(int eventType, Bundle? @event) { }
-
-    public void OnError(SpeechRecognizerError error)
-    {
-        Log.Error(AndroidSpeechRecognizer.Tag, $"[Understander] Speech error: {error}");
-
-        // При NoMatch/SpeechTimeout в partial-результате часто уже лежит
-        // распознанный текст — CompleteSession подхватит его.
-        _owner.CompleteSession(_sessionId, null, ErrorMessage(error));
-    }
-
-    public void OnPartialResults(Bundle? partialResults)
-    {
-        var text = FirstResult(partialResults);
-
-        if (!string.IsNullOrWhiteSpace(text))
-        {
-            Log.Info(AndroidSpeechRecognizer.Tag, $"[Understander] Partial: '{text}'");
-            _owner.ReportPartial(_sessionId, text!);
-        }
-    }
-
-    public void OnResults(Bundle? results)
-    {
-        var text = FirstResult(results);
-
-        Log.Info(AndroidSpeechRecognizer.Tag, $"[Understander] Final: '{text}'");
-        _owner.CompleteSession(_sessionId, text, null);
-    }
-
-    /// <summary>
-    /// Берёт первый непустой вариант распознавания. Confidence-массив намеренно
-    /// не используется: большинство движков его не отдают, из-за чего раньше
-    /// результат всегда отбрасывался.
-    /// </summary>
-    static string? FirstResult(Bundle? bundle)
-    {
-        var list = bundle?.GetStringArrayList(RecognizerIntent.ExtraResults);
-
-        if (list is null) return null;
-
-        foreach (var item in list)
-        {
-            if (!string.IsNullOrWhiteSpace(item))
-                return item;
-        }
-
-        return null;
-    }
-
-    static string ErrorMessage(SpeechRecognizerError error) => (int)error switch
-    {
-        1 => "Нет соединения с сервисом распознавания речи.",          // NetworkTimeout
-        2 => "Нет соединения с сервисом распознавания речи.",          // Network
-        3 => "Ошибка записи звука. Проверьте микрофон.",               // Audio
-        4 => "Ошибка сервиса распознавания речи.",                     // Server
-        5 => "Ошибка распознавания речи. Попробуйте ещё раз.",          // Client
-        6 => "Речь не распознана. Попробуйте ещё раз.",                 // SpeechTimeout
-        7 => "Речь не распознана. Попробуйте ещё раз.",                 // NoMatch
-        8 => "Сервис распознавания занят. Попробуйте ещё раз.",         // RecognizerBusy
-        9 => "Нет доступа к микрофону. Разрешите его в настройках.",    // InsufficientPermissions
-        10 => "Слишком много запросов. Попробуйте позже.",              // TooManyRequests
-        11 => "Соединение с сервисом распознавания прервано.",          // ServerDisconnected
-        _ => $"Ошибка распознавания речи ({error})."
-    };
-}
-
