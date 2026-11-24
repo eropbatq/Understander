@@ -1,131 +1,478 @@
-# 🌐 Understander — Мобильный переводчик для Android
+# Understander
 
-![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)
-![Framework](https://img.shields.io/badge/Framework-.NET%20MAUI%209-512BD4?style=flat-square&logo=dotnet&logoColor=white)
-![IDE](https://img.shields.io/badge/IDE-Visual%20Studio%202022-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
-![Database](https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
-![Status](https://img.shields.io/badge/Status-In%20Development-yellow?style=flat-square)
+Мобильное приложение-переводчик на .NET MAUI с основным сценарием использования на Android.
+Проект объединяет перевод текста, распознавание речи, перевод диалога, OCR по фотографии,
+озвучивание результата и локальную историю переводов.
 
-**Understander** — это кроссплатформенное мобильное приложение-переводчик с фокусом на платформу **Android**, разрабатываемое в рамках курсового проекта. Приложение позволяет переводить текст в реальном времени с использованием внешних API и сохранять историю запросов в локальной базе данных для офлайн-доступа.
+> **Актуальность документации:** 24 ноября 2026 года
+> **Текущее состояние:** основная функциональность реализована; проект находится в стадии
+> интеграционного тестирования на Android-эмуляторе и физических устройствах.
 
----
-
-## 📋 Оглавление
-- [Основной функционал](#-основной-функционал)
-- [Технологический стек](#-технологический-стек)
-- [Архитектура и структура проекта](#-архитектура-и-структура-проекта)
-- [Установка и запуск](#-установка-и-запуск)
-- [Дорожная карта (To-Do List)](#-дорожная-карта-to-do-list)
-- [Команда разработки](#-команда-разработки)
+![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white)
+![Framework](https://img.shields.io/badge/.NET%20MAUI-9-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+![Language](https://img.shields.io/badge/language-C%23%2013-239120?style=flat-square&logo=csharp&logoColor=white)
+![Database](https://img.shields.io/badge/database-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Status](https://img.shields.io/badge/status-Active%20development-yellow?style=flat-square)
 
 ---
 
-## ✨ Основной функционал
-- **Быстрый перевод текста:** Поддержка десятков языковых пар через интеграцию с бесплатными REST API.
-- **Локальная история переводов:** Автоматическое сохранение всех выполненных переводов в локальную БД SQLite с возможностью просмотра без интернета.
-- **Очистка и управление историей:** Возможность удалять отдельные записи или полностью очищать историю запросов.
-- **Копирование и обмен:** Быстрое копирование переведенного текста в буфер обмена в одно нажатие.
-- **Адаптивный интерфейс:** Современный UI, оптимизированный под различные разрешения экранов Android-устройств.
+## Содержание
+
+- [Назначение приложения](#назначение-приложения)
+- [Возможности](#возможности)
+- [Поддерживаемые языки](#поддерживаемые-языки)
+- [Как работает распознавание речи](#как-работает-распознавание-речи)
+- [Архитектура](#архитектура)
+- [Структура проекта](#структура-проекта)
+- [Технологический стек](#технологический-стек)
+- [Внешние сервисы и ограничения](#внешние-сервисы-и-ограничения)
+- [Требования к окружению](#требования-к-окружению)
+- [Запуск из Visual Studio](#запуск-из-visual-studio)
+- [Сборка и запуск из PowerShell](#сборка-и-запуск-из-powershell)
+- [Сценарии использования](#сценарии-использования)
+- [Разрешения Android](#разрешения-android)
+- [Диагностика](#диагностика)
+- [Известные ограничения](#известные-ограничения)
+- [Текущее состояние функциональности](#текущее-состояние-функциональности)
+- [Команда](#команда)
 
 ---
 
-## 🛠 Технологический стек
-* **Язык программирования:** C# 13
-* **Платформа и фреймворк:** .NET 9 (.NET MAUI / Android)
-* **Среда разработки (IDE):** Visual Studio 2022 (версия 17.12+)
-* **База данных:** SQLite (`sqlite-net-pcl` / Entity Framework Core)
-  * **OCR (распознавание текста с фото):**
-  * **ML Kit Text Recognition v2** через `Plugin.Maui.OCR` — латиница и другие поддерживаемые ML Kit письменности
-  * **Tesseract4Android 4.9** — кириллица (русский), т.к. ML Kit её не поддерживает. Модели `rus`/`eng` лежат в `Resources/Raw/tessdata` и работают офлайн
-* **API Перевода:** 
-  * [MyMemory Translation API](https://translated.net) (основной открытый API для переводов)
-  * Google Translate API (резервный / открытый эндпоинт)
-* **Система контроля версий:** Git & GitHub
+## Назначение приложения
+
+**Understander** предназначен для быстрого перевода текста и коротких реплик между
+собеседниками. Приложение рассчитано прежде всего на Android и использует стандартные
+системные возможности устройства, когда это возможно:
+
+- системное распознавание речи Google через `RecognizerIntent`;
+- системный Text-to-Speech для озвучивания перевода;
+- камеру или галерею для получения изображения;
+- локальную SQLite-базу для истории.
+
+Архитектура построена на MVVM. Пользовательский интерфейс реализован на XAML, сервисы
+перевода, OCR, речи и базы данных отделены от экранов и ViewModel.
 
 ---
 
-## 🏗 Архитектура и структура проекта
+## Возможности
 
-Проект построен с разделением ответственности на слои (Data, Services, UI):
+### Главный экран
 
-## 🏗 Архитектура и структура проекта
+- ввод текста вручную;
+- вставка текста из буфера обмена;
+- выбор исходного и целевого языка;
+- обмен языков местами;
+- перевод через выбранный движок;
+- автоматический переход к другим зарегистрированным переводчикам при ошибке;
+- копирование результата;
+- озвучивание результата через Android Text-to-Speech;
+- перевод текста с фотографии.
 
-Проект построен на базе **MVVM** (Model-View-ViewModel) с четким разделением бизнес-логики, сервисов и пользовательского интерфейса:
+### Режим диалога
+
+Режим диалога предназначен для общения двух людей:
+
+- задаются два языка собеседников;
+- приложение по очереди ожидает реплику активного собеседника;
+- текст распознаётся системным Google Speech UI;
+- распознанная реплика добавляется в список сообщений;
+- для неё выполняется перевод на язык второго собеседника;
+- после успешной реплики активный собеседник переключается автоматически;
+- языки можно поменять местами кнопкой `⇄`.
+
+**Важно:** в актуальной реализации распознавание запускается системным экраном Google.
+После нажатия микрофона нужно говорить и завершить запись средствами этого системного
+экрана. Это не режим удержания кнопки Understander и не схема «нажал/отпустил».
+
+### История
+
+- записи переводов сохраняются локально в SQLite;
+- история доступна без повторного запроса к API;
+- записи можно открыть повторно;
+- поддерживается удаление записей.
+
+### OCR
+
+Распознавание текста по фотографии использует два Android-механизма:
+
+- `Plugin.Maui.OCR` / ML Kit для поддерживаемых письменностей;
+- Tesseract4Android для русского текста и кириллицы.
+
+Модели Tesseract находятся в `Resources/Raw/tessdata`: `eng.traineddata` и `rus.traineddata`.
+
+---
+
+## Поддерживаемые языки
+
+| Код | Язык |
+|---|---|
+| `ru` | Русский |
+| `en` | English |
+| `de` | Deutsch |
+| `fr` | Français |
+| `es` | Español |
+| `it` | Italiano |
+| `tr` | Türkçe |
+| `zh` | 中文 |
+
+Для Android Speech Intent языковые коды преобразуются в локали, например `ru` → `ru-RU`
+и `en` → `en-US`. Фактическая доступность языка зависит от установленных Google Speech
+Services и языковых пакетов устройства.
+
+---
+
+## Как работает распознавание речи
+
+Текущая Android-цепочка использует системный `RecognizerIntent`, а не ручную запись PCM:
+
+```text
+DialogueViewModel
+    ↓
+AndroidSpeechRecognizer.StartListeningAsync(language)
+    ↓
+RecognizerIntent.ActionRecognizeSpeech
+    ↓
+системный Google Speech Services
+    ↓
+MainActivity.OnActivityResult
+    ↓
+AndroidSpeechRecognizer.CompleteFromActivity
+    ↓
+DialogueViewModel
+```
+
+Этот подход выбран потому, что системное приложение Google на эмуляторе и телефоне уже
+подтверждает работоспособность такого сценария. Understander передаёт локаль, получает
+`RecognizerIntent.ExtraResults` и использует первый непустой результат.
+
+Для диагностики используется тег logcat:
+
+```text
+Understander.Speech
+```
+
+Ожидаемые сообщения:
+
+```text
+Launching Google RecognizerIntent: ru-RU
+Google RecognizerIntent result: 'привет'
+```
+
+---
+
+## Архитектура
+
+Проект использует MVVM и разделён на следующие уровни.
+
+### Views
+
+- `MainPage` — основной переводчик;
+- `DialoguePage` — режим диалога;
+- `HistoryPage` — история переводов.
+
+### ViewModels
+
+- `MainViewModel` — текстовый перевод, OCR, буфер и история;
+- `DialogueViewModel` — языки собеседников, речь и сообщения;
+- `HistoryViewModel` — просмотр истории;
+- `AsyncCommand` — адаптер асинхронных операций для XAML.
+
+### Services
+
+- `ITranslator` — общий интерфейс переводчика;
+- `GoogleTranslator` — Google Translate endpoint;
+- `MyMemoryTranslator` — MyMemory Translation API;
+- `LaraTranslator` — Lara SDK;
+- `ISpeechRecognizer` — интерфейс распознавания речи;
+- `AndroidSpeechRecognizer` — Android-реализация через Google `RecognizerIntent`;
+- `NoOpSpeechRecognizer` — заглушка для платформ без Android-реализации;
+- `OcrService` — OCR-сервис;
+- `HistoryDatabase` — SQLite-хранилище истории.
+
+Регистрация зависимостей выполняется в `MauiProgram.cs`. На Android используется
+`AndroidSpeechRecognizer`, на остальных платформах — `NoOpSpeechRecognizer`.
+
+---
+
+## Структура проекта
 
 ```text
 Understander/
-├── Models/                      # Модели данных (структура таблиц БД и сущности)
-├── Platforms/                   # Платформозависимый код и конфигурации (Android)
-├── Resources/                   # Шрифты, иконки, стили и графические ресурсы
-├── Services/                    # Слой сервисов и бизнес-логики
-│   ├── GoogleTranslator.cs      # Сервис перевода через Google Translate API
-│   ├── ITranslator.cs           # Общий интерфейс для провайдеров перевода
-│   ├── MyMemoryTranslator.cs    # Сервис перевода через MyMemory API
-│   └── OcrService.cs            # Сервис оптического распознавания текста (OCR)
-├── ViewModels/                  # Модели представлений (связующая логика UI и сервисов)
-│   └── MainViewModel.cs         # Основная ViewModel главного экрана
-├── Views/                       # XAML-страницы пользовательского интерфейса
-│   ├── MainPage.xaml            # Разметка главного экрана приложения
-│   └── MainPage.xaml.cs         # Code-behind главного экрана
-├── App.xaml                     # Глобальные ресурсы и стили приложения
-├── AppShell.xaml                # Навигация и структура оболочки (Shell)
-└── MauiProgram.cs               # Точка входа, конфигурация DI-контейнера и сервисов
+├── Converters/                         # Конвертеры для XAML
+├── Models/                             # Модели данных
+├── Platforms/
+│   ├── Android/
+│   │   ├── AndroidManifest.xml         # Android-разрешения и queries
+│   │   ├── AndroidSpeechRecognizer.cs  # Google RecognizerIntent
+│   │   ├── MainActivity.cs             # Получение результата Intent
+│   │   ├── MainApplication.cs          # Android entry point
+│   │   └── TesseractOcr.cs             # Android OCR
+│   ├── iOS/                            # iOS-конфигурация
+│   ├── MacCatalyst/                    # Mac Catalyst-конфигурация
+│   ├── Tizen/                          # заготовка Tizen
+│   └── Windows/                        # Windows-конфигурация
+├── Resources/                          # шрифты, изображения, стили, tessdata
+├── Services/                           # перевод, OCR, речь, база
+├── ViewModels/                         # MVVM-логика
+├── Views/                              # XAML-экраны
+├── App.xaml                            # ресурсы приложения
+├── AppShell.xaml                       # TabBar и маршруты
+├── MauiProgram.cs                      # DI и запуск MAUI
+├── Understander.csproj                 # проект и NuGet-пакеты
+└── Understander.sln                    # solution Visual Studio
 ```
 
-## 🚀 Установка и запуск
+---
 
-### Требования
-1. Установленная **Visual Studio 2022** с рабочей нагрузкой *.NET Multi-platform App UI development*.
-2. Установленный **Android SDK** (API 24+ / Android 7.0 и выше) и настроенный эмулятор (либо физическое Android-устройство с включенной отладкой по USB).
-3. Установленный **.NET 9.0 SDK**.
+## Технологический стек
 
-### Шаги для запуска
-1. Клонируйте репозиторий:
-   ```bash
-   git clone https://github.com/eropbatq/Understander.git
-   ```
-2. Откройте файл решения `Understander.sln` в Visual Studio 2022.
-3. Дождитесь автоматического восстановления NuGet-пакетов.
-4. В верхней панели выберите целевое устройство (эмулятор Android или подключенный смартфон).
-5. Нажмите `F5` или кнопку **Start** для сборки и запуска приложения.
+- C# 13;
+- .NET 9 и .NET MAUI 9;
+- Android API 21+ как минимальная версия проекта;
+- Visual Studio 2022 с workload **.NET Multi-platform App UI development**;
+- `CommunityToolkit.Maui`;
+- `CommunityToolkit.Mvvm`;
+- `sqlite-net-pcl` 1.9.172;
+- `Plugin.Maui.OCR` 1.1.1;
+- `Plugin.Maui.Audio` 3.0.0;
+- `Lara.Sdk` 1.11.2;
+- Tesseract4Android 4.9.0 (`libs/tesseract4android-4.9.0.aar`).
+
+Целевые framework проекта:
+
+```text
+net9.0-android
+net9.0-ios
+net9.0-maccatalyst
+net9.0-windows10.0.19041.0  # добавляется на Windows-хосте
+```
+
+Основное тестирование выполняется на Android.
 
 ---
 
-## 📌 Дорожная карта (To-Do List)
+## Внешние сервисы и ограничения
 
-Текущий прогресс разработки курсового проекта:
+В проекте зарегистрированы три переводчика:
 
-### Этап 1: Базовая настройка и архитектура
-- [x] Инициализация проекта на .NET 9 в Visual Studio 2022
-- [x] Настройка репозитория GitHub и ветвления
-- [x] Проектирование базового макета главного экрана
+1. Google — выбранный пользователем провайдер может быть вызван первым;
+2. MyMemory — запасной REST API;
+3. Lara — SDK-провайдер с ключами доступа.
 
-### Этап 2: Работа с API и сетью
-- [x] Подключение `HttpClient` и парсинг JSON-ответов
-- [x] Интеграция бесплатного **MyMemory API** для перевода текста
-- [x] Добавление резервного модуля **Google Translate API**
-- [x] Обработка ошибок отсутствия интернета и таймаутов сервера
+Если первый провайдер недоступен, `MainViewModel` пробует остальные зарегистрированные
+варианты.
 
-### Этап 3: Локальная база данных (SQLite)
-- [ ] Подключение библиотеки `sqlite-net-pcl`
-- [ ] Создание таблицы `History` (исходный текст, перевод, языковая пара, дата)
-- [ ] Реализация сохранения каждого успешного перевода в БД
-- [ ] Вывод списка истории на отдельной вкладке и удаление записей
+`GoogleTranslator` использует публичный endpoint `translate.googleapis.com` с параметром
+`client=gtx`. Это не официальный Google Cloud Translation API. Google может ограничивать
+такие запросы, поэтому для production рекомендуется официальный API с серверной защитой
+ключа.
 
-### Этап 4: Полировка UI/UX и сдача проекта
-- [ ] Добавление кнопки смены языков местами (Swap languages)
-- [ ] Кнопка быстрого копирования результата в буфер обмена
-- [ ] Тестирование на реальном Android-устройстве
-- [ ] Подготовка пояснительной записки к курсовой работе
+`LaraTranslator` читает переменные окружения:
+
+```text
+LARA_ACCESS_KEY_ID
+LARA_ACCESS_KEY_SECRET
+```
+
+Перед публикацией необходимо удалить секреты из исходников, заменить ключи и хранить их
+вне репозитория.
+
+Текстовый перевод и Lara/MyMemory требуют интернет-соединения. SQLite, история и локальные
+Tesseract-модели работают без сети. Распознавание зависит от Google Speech Services и может
+использовать сетевой fallback.
+
+---
+
+## Требования к окружению
+
+1. Windows 10/11;
+2. Visual Studio 2022 17.12 или новее;
+3. workload **.NET Multi-platform App UI development**;
+4. .NET SDK 9;
+5. Android SDK и Platform Tools;
+6. Android Emulator с образом Google APIs или физический Android-телефон;
+7. отладка по USB для физического устройства;
+8. Google Speech Services и нужные языковые пакеты на Android.
+
+Проверка окружения:
+
+```powershell
+dotnet --info
+adb devices
+```
 
 ---
 
-## 👥 Команда разработки
+## Запуск из Visual Studio
 
-| Разработчик | Роль в проекте | Зона ответственности |
-| :--- | :--- | :--- |
-| **[ eropbatq / Егор]** | Team Lead / Backend & DB | Архитектура проекта, работа с SQLite, настройка репозитория |
-| **[ Tw1ckkHype / Александр ]** | Frontend / API Integration | Верстка XAML-интерфейса, интеграция MyMemory / Google API |
+1. Откройте `C:\Users\tw1ckk\Desktop\Understander\Understander.sln`.
+2. Дождитесь восстановления NuGet-пакетов.
+3. Выберите Android Emulator или подключённый телефон.
+4. Выберите конфигурацию `Debug`.
+5. Нажмите `F5` или **Start**.
+6. При первом запуске разрешите доступ к микрофону и камере.
+
+После существенных изменений рекомендуется удалить старую APK и установить сборку заново.
 
 ---
-*Разработано в учебных целях (2026).*
+
+## Сборка и запуск из PowerShell
+
+```powershell
+Set-Location "C:\Users\tw1ckk\Desktop\Understander"
+dotnet restore .\Understander.csproj
+dotnet clean .\Understander.csproj
+dotnet build .\Understander.csproj -f net9.0-android -c Debug
+dotnet build .\Understander.csproj -t:Run -f net9.0-android -c Debug
+```
+
+Для чистого теста можно удалить приложение:
+
+```powershell
+adb uninstall com.companyname.understander
+```
+
+---
+
+## Сценарии использования
+
+### Перевод текста
+
+1. Откройте **Главная**.
+2. Выберите исходный и целевой язык.
+3. Выберите движок.
+4. Введите текст или нажмите **Вставить**.
+5. Нажмите **Перевести →**.
+6. При ошибке выбранного сервиса будет выполнен fallback к другим провайдерам.
+
+### Речь в режиме диалога
+
+1. Откройте **Режим диалога**.
+2. Проверьте языки двух собеседников.
+3. Нажмите микрофон.
+4. В системном Google-окне разрешите микрофон.
+5. Произнесите реплику.
+6. Завершите запись в системном окне Google.
+7. Дождитесь оригинала и перевода в карточке сообщения.
+
+### OCR-перевод
+
+1. На главном экране нажмите кнопку камеры.
+2. Выберите камеру или галерею.
+3. Разрешите доступ к камере/фотографиям.
+4. Дождитесь распознавания текста.
+5. Проверьте поле ввода и запустите перевод.
+
+### Озвучивание
+
+1. Выполните перевод.
+2. Нажмите кнопку динамика.
+3. Приложение выберет системную локаль Text-to-Speech для языка результата.
+
+---
+
+## Разрешения Android
+
+В `Platforms/Android/AndroidManifest.xml` заявлены:
+
+- `INTERNET` — сетевые API;
+- `ACCESS_NETWORK_STATE` — состояние сети;
+- `CAMERA` — фотографирование для OCR;
+- `RECORD_AUDIO` — речь;
+- `MODIFY_AUDIO_SETTINGS` — аудиоподсистема.
+
+Доступ к микрофону дополнительно запрашивается во время работы через
+`Permissions.Microphone`. Для Android 11+ в manifest добавлен `queries` с
+`android.speech.RecognitionService`, чтобы система находила сервис распознавания.
+
+---
+
+## Диагностика
+
+Основной тег logcat:
+
+```text
+Understander.Speech
+```
+
+Команды:
+
+```powershell
+adb logcat -c
+adb logcat -v time | Select-String `
+  "Understander.Speech|RecognizerIntent|RecognitionService|AudioRecord|Google"
+```
+
+Ожидаемый результат:
+
+```text
+Launching Google RecognizerIntent: ru-RU
+Google RecognizerIntent result: 'привет'
+```
+
+Если системное окно не появляется, проверьте Google Speech Services, голосовой ввод,
+разрешение `RECORD_AUDIO`, установленную APK и наличие `RecognitionService`.
+
+Проверка разрешений и пакетов:
+
+```powershell
+adb shell dumpsys package com.companyname.understander
+adb shell pm list packages | Select-String "google|speech|tts"
+```
+
+Сообщение `Google Translate заблокировал запрос` относится к текстовому HTTP-переводу,
+а не к микрофону и Google Speech Intent.
+
+---
+
+## Известные ограничения
+
+- Основной и наиболее проверенный сценарий — Android.
+- На других платформах регистрируется `NoOpSpeechRecognizer`.
+- Речь зависит от Google Speech Services и языковых пакетов устройства.
+- Публичный Google Translate endpoint может блокировать запросы.
+- Бесплатные сервисы перевода имеют ограничения по частоте и объёму.
+- Lara-ключи нужно вынести из исходного кода перед публикацией.
+- Качество OCR зависит от освещения, резкости, шрифта и языка.
+- История хранится только локально и не синхронизируется с сервером.
+
+---
+
+## Текущее состояние функциональности
+
+| Компонент | Состояние |
+|---|---|
+| Главный экран перевода | Реализован |
+| Выбор и обмен языков | Реализован |
+| Google Translator | Реализован; публичный endpoint может блокироваться |
+| MyMemory fallback | Реализован |
+| Lara Translator | Реализован; нужны рабочие credentials |
+| Android Speech | Реализован через системный Google RecognizerIntent |
+| Режим диалога | Реализован |
+| OCR с камеры/галереи | Реализован |
+| Tesseract-модели `rus`/`eng` | Подключены |
+| Text-to-Speech | Реализован через MAUI API |
+| SQLite-история | Реализована |
+| Android-разрешения | Настроены |
+| Unit-тесты | Не добавлены |
+| CI/CD | Не настроен |
+
+---
+
+## Команда
+
+| Участник | Роль |
+|---|---|
+| Егор / `eropbatq` | Архитектура, backend, база данных |
+| Александр / `Tw1ckkHype` | UI, интеграция API и пользовательские сценарии |
+
+Проект разработан в учебных целях.
+
+---
+
+## Лицензии и сторонние сервисы
+
+Перед распространением приложения необходимо проверить условия использования .NET MAUI,
+NuGet-пакетов, Google Speech Services, Google Translate endpoint, MyMemory API, Lara SDK,
+ML Kit, Tesseract4Android и языковых моделей. Отдельный файл лицензии проекта в текущей
+версии отсутствует.
