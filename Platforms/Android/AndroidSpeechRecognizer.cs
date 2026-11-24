@@ -21,6 +21,7 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(5);
 
     readonly bool _isAvailable;
+    readonly object _sync = new();
 
     SpeechRecognizer? _recognizer;
     TaskCompletionSource<string>? _tcs;
@@ -61,14 +62,17 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
                           ?? Android.App.Application.Context;
 
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int sessionId;
 
-        // Если прошлая сессия по какой-то причине не завершилась — закрываем её,
-        // чтобы ожидающий код не остался висеть вечно.
-        _tcs?.TrySetCanceled();
-
-        var sessionId = ++_session;
-        _tcs = tcs;
-        _partialText = "";
+        lock (_sync)
+        {
+            // Если прошлая сессия по какой-то причине не завершилась — закрываем её,
+            // чтобы ожидающий код не остался висеть вечно.
+            _tcs?.TrySetCanceled();
+            sessionId = ++_session;
+            _tcs = tcs;
+            _partialText = "";
+        }
 
         // SpeechRecognizer обязан создаваться и запускаться на главном потоке.
         await MainThread.InvokeOnMainThreadAsync(() => StartOnMainThread(context, languageCode, sessionId));
@@ -118,7 +122,11 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     /// </summary>
     public void StopListening()
     {
-        var sessionId = _session;
+        int sessionId;
+        lock (_sync)
+        {
+            sessionId = _session;
+        }
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -142,7 +150,10 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     {
         await Task.Delay(delay);
 
-        if (sessionId != _session || _tcs is null || _tcs.Task.IsCompleted) return;
+        lock (_sync)
+        {
+            if (sessionId != _session || _tcs is null || _tcs.Task.IsCompleted) return;
+        }
 
         Log.Warn(Tag, $"[Understander] Recognition timeout ({delay.TotalSeconds:F0}s)");
         CompleteSession(sessionId, null, "Речь не распознана. Попробуйте ещё раз.");
@@ -151,8 +162,11 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     /// <summary>Запоминает промежуточный результат — он пригодится, если финального не будет.</summary>
     internal void ReportPartial(int sessionId, string text)
     {
-        if (sessionId != _session) return;
-        _partialText = text;
+        lock (_sync)
+        {
+            if (sessionId != _session) return;
+            _partialText = text;
+        }
     }
 
     /// <summary>
@@ -161,19 +175,28 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     /// </summary>
     internal void CompleteSession(int sessionId, string? text, string? error)
     {
-        if (sessionId != _session) return;
-
-        var tcs = _tcs;
-        _tcs = null;
+        TaskCompletionSource<string>? tcs;
+        string partial;
+        lock (_sync)
+        {
+            if (sessionId != _session) return;
+            tcs = _tcs;
+            _tcs = null;
+            partial = _partialText;
+        }
 
         ReleaseRecognizer();
 
         if (tcs is null || tcs.Task.IsCompleted) return;
 
-        var final = !string.IsNullOrWhiteSpace(text) ? text.Trim() : _partialText.Trim();
+        var final = !string.IsNullOrWhiteSpace(text) ? text.Trim() : partial.Trim();
 
         if (!string.IsNullOrWhiteSpace(final))
             tcs.TrySetResult(final);
+        else if (error is null || error.Contains("не распознана", StringComparison.OrdinalIgnoreCase))
+            // NoMatch/SpeechTimeout — это обычный пустой результат, а не ошибка
+            // системного сервиса. ViewModel сама покажет пользователю подсказку.
+            tcs.TrySetResult(string.Empty);
         else
             tcs.TrySetException(new InvalidOperationException(
                 error ?? "Речь не распознана. Попробуйте ещё раз."));
