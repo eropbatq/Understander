@@ -29,11 +29,9 @@ public partial class DialoguePage : ContentPage
     {
         base.OnDisappearing();
 
-        // Уходя с вкладки, обязательно завершаем запись — иначе микрофон
-        // останется занятым, а результат придёт в уже скрытую страницу.
+        // RecognizerIntent временно открывает системный экран Google и из-за
+        // этого MAUI может вызвать OnDisappearing. Нельзя отменять здесь
+        // ожидаемый результат: он вернётся через MainActivity.OnActivityResult.
         MicButton.Scale = 1;
-
-        if (BindingContext is DialogueViewModel vm)
-            vm.CancelRecording();
     }
 }

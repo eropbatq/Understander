@@ -1,22 +1,18 @@
+using Android.App;
 using Android.Content;
-using Android.OS;
 using Android.Speech;
 using Android.Util;
 using Microsoft.Maui.ApplicationModel;
 
 namespace Understander.Services;
 
-/// <summary>Одна простая сессия системного Android SpeechRecognizer.</summary>
-public sealed class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
+/// <summary>Системное распознавание через Google RecognizerIntent.</summary>
+public sealed class AndroidSpeechRecognizer : ISpeechRecognizer
 {
+    internal const int RequestCode = 4711;
     internal const string Tag = "Understander.Speech";
-    static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(12);
-
-    readonly object _gate = new();
-    SpeechRecognizer? _recognizer;
-    TaskCompletionSource<string>? _result;
-    int _session;
-    bool _disposed;
+    static readonly object Sync = new();
+    static TaskCompletionSource<string>? _pending;
 
     public bool IsAvailable { get; }
 
@@ -28,113 +24,64 @@ public sealed class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
 
     public async Task<string> StartListeningAsync(string languageCode)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(AndroidSpeechRecognizer));
-        if (!IsAvailable) throw new NotSupportedException("Системный сервис распознавания речи недоступен.");
+        if (!IsAvailable)
+            throw new NotSupportedException("Системный сервис Google распознавания речи недоступен.");
 
+        var activity = Platform.CurrentActivity
+            ?? throw new InvalidOperationException("Активное Android-окно приложения не найдено.");
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        int session;
-        lock (_gate)
+
+        lock (Sync)
         {
-            if (_result is not null) throw new InvalidOperationException("Распознавание уже запущено.");
-            session = ++_session;
-            _result = completion;
+            if (_pending is not null) throw new InvalidOperationException("Распознавание речи уже запущено.");
+            _pending = completion;
         }
 
-        try { await MainThread.InvokeOnMainThreadAsync(() => StartOnMainThread(languageCode, session)); }
-        catch (Exception ex) { Finish(session, null, ex); }
-
-        _ = TimeoutAsync(session);
-        return await completion.Task;
-    }
-
-    void StartOnMainThread(string languageCode, int session)
-    {
-        if (!IsCurrent(session)) return;
+        var locale = ToLocale(languageCode);
+        var intent = new Intent(RecognizerIntent.ActionRecognizeSpeech);
+        intent.PutExtra(RecognizerIntent.ExtraLanguageModel, RecognizerIntent.LanguageModelFreeForm);
+        intent.PutExtra(RecognizerIntent.ExtraLanguage, locale);
+        intent.PutExtra(RecognizerIntent.ExtraLanguagePreference, locale);
+        intent.PutExtra(RecognizerIntent.ExtraPrompt, $"Говорите на языке: {locale}");
+        intent.PutExtra(RecognizerIntent.ExtraMaxResults, 1);
+        intent.PutExtra(RecognizerIntent.ExtraPartialResults, false);
+        intent.PutExtra(RecognizerIntent.ExtraPreferOffline, false);
 
         try
         {
-            var context = Platform.CurrentActivity ?? Android.App.Application.Context;
-            var recognizer = SpeechRecognizer.CreateSpeechRecognizer(context)
-                ?? throw new InvalidOperationException("Не удалось создать сервис распознавания речи.");
-            recognizer.SetRecognitionListener(new Listener(this, session));
-
-            lock (_gate)
-            {
-                if (!IsCurrent(session)) { recognizer.Destroy(); return; }
-                _recognizer = recognizer;
-            }
-
-            var locale = ToLocale(languageCode);
-            var intent = new Intent(RecognizerIntent.ActionRecognizeSpeech);
-            intent.PutExtra(RecognizerIntent.ExtraLanguageModel, RecognizerIntent.LanguageModelFreeForm);
-            intent.PutExtra(RecognizerIntent.ExtraLanguage, locale);
-            intent.PutExtra(RecognizerIntent.ExtraLanguagePreference, locale);
-            intent.PutExtra(RecognizerIntent.ExtraPartialResults, false);
-            intent.PutExtra(RecognizerIntent.ExtraMaxResults, 1);
-            intent.PutExtra(RecognizerIntent.ExtraPreferOffline, false);
-            intent.PutExtra(RecognizerIntent.ExtraCallingPackage, context.PackageName);
-            recognizer.StartListening(intent);
-            Log.Info(Tag, $"Started: {locale}");
+            Log.Info(Tag, $"Launching Google RecognizerIntent: {locale}");
+            activity.StartActivityForResult(intent, RequestCode);
         }
-        catch (Exception ex) { Finish(session, null, ex); }
+        catch (Exception ex) { Complete(null, ex); }
+
+        return await completion.Task;
     }
 
-    public void StopListening()
+    internal static void CompleteFromActivity(int requestCode, Result resultCode, Intent? data)
     {
-        int session;
-        lock (_gate) session = _session;
-        MainThread.BeginInvokeOnMainThread(() =>
+        if (requestCode != RequestCode) return;
+
+        if (resultCode == Result.Ok)
         {
-            if (!IsCurrent(session)) return;
-            try { _recognizer?.StopListening(); Log.Info(Tag, "Stop requested"); }
-            catch (Exception ex) { Finish(session, null, ex); }
-        });
-    }
-
-    async Task TimeoutAsync(int session)
-    {
-        await Task.Delay(ResultTimeout);
-        if (IsCurrent(session)) Finish(session, null, new TimeoutException("Сервис распознавания не вернул результат."));
-    }
-
-    bool IsCurrent(int session)
-    {
-        lock (_gate) return _result is not null && _session == session;
-    }
-
-    internal void OnResults(int session, Bundle? bundle)
-    {
-        var matches = bundle?.GetStringArrayList(RecognizerIntent.ExtraResults);
-        Finish(session, matches?.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)), null);
-    }
-
-    internal void OnError(int session, SpeechRecognizerError error)
-    {
-        Log.Warn(Tag, $"Recognition error: {error}");
-        if (error is SpeechRecognizerError.NoMatch or SpeechRecognizerError.SpeechTimeout)
-            Finish(session, string.Empty, null);
+            var results = data?.GetStringArrayListExtra(RecognizerIntent.ExtraResults);
+            var text = results?.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+            Log.Info(Tag, $"Google RecognizerIntent result: '{text ?? "<empty>"}'");
+            Complete(text, null);
+        }
         else
-            Finish(session, null, new InvalidOperationException(ErrorMessage(error)));
+        {
+            Log.Info(Tag, "Google RecognizerIntent cancelled or returned no result");
+            Complete(string.Empty, null);
+        }
     }
 
-    void Finish(int session, string? text, Exception? error)
+    public void StopListening() => Complete(string.Empty, new OperationCanceledException("Распознавание отменено."));
+
+    static void Complete(string? text, Exception? error)
     {
         TaskCompletionSource<string>? completion;
-        SpeechRecognizer? recognizer;
-        lock (_gate)
-        {
-            if (_result is null || _session != session) return;
-            completion = _result; _result = null;
-            recognizer = _recognizer; _recognizer = null;
-        }
-
-        void Cleanup()
-        {
-            try { recognizer?.SetRecognitionListener(null); recognizer?.Destroy(); }
-            catch (Exception ex) { Log.Warn(Tag, $"Cleanup failed: {ex.Message}"); }
-        }
-        if (MainThread.IsMainThread) Cleanup(); else MainThread.BeginInvokeOnMainThread(Cleanup);
-
+        lock (Sync) { completion = _pending; _pending = null; }
+        if (completion is null) return;
         if (error is not null) completion.TrySetException(error);
         else completion.TrySetResult(text?.Trim() ?? string.Empty);
     }
@@ -145,35 +92,4 @@ public sealed class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
         "de" => "de-DE", "fr" => "fr-FR", "es" => "es-ES",
         "it" => "it-IT", "tr" => "tr-TR", "zh" => "zh-CN", _ => code
     };
-
-    static string ErrorMessage(SpeechRecognizerError error) => error switch
-    {
-        SpeechRecognizerError.Audio => "Ошибка записи звука. Проверьте доступ к микрофону.",
-        SpeechRecognizerError.Network or SpeechRecognizerError.NetworkTimeout => "Нет соединения с сервисом распознавания речи.",
-        SpeechRecognizerError.RecognizerBusy => "Сервис распознавания занят.",
-        SpeechRecognizerError.InsufficientPermissions => "Нет разрешения на микрофон.",
-        _ => $"Ошибка распознавания речи: {error}."
-    };
-
-    public void Dispose()
-    {
-        int session;
-        lock (_gate) { if (_disposed) return; _disposed = true; session = _session; }
-        Finish(session, null, new System.OperationCanceledException("Распознавание остановлено."));
-    }
-
-    sealed class Listener : Java.Lang.Object, IRecognitionListener
-    {
-        readonly AndroidSpeechRecognizer _owner; readonly int _session;
-        public Listener(AndroidSpeechRecognizer owner, int session) { _owner = owner; _session = session; }
-        public void OnResults(Bundle? results) => _owner.OnResults(_session, results);
-        public void OnError(SpeechRecognizerError error) => _owner.OnError(_session, error);
-        public void OnReadyForSpeech(Bundle? parameters) { }
-        public void OnBeginningOfSpeech() { }
-        public void OnRmsChanged(float rmsdB) { }
-        public void OnBufferReceived(byte[]? buffer) { }
-        public void OnEndOfSpeech() { }
-        public void OnPartialResults(Bundle? partialResults) { }
-        public void OnEvent(int eventType, Bundle? parameters) { }
-    }
 }

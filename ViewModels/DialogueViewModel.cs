@@ -107,12 +107,7 @@ public class DialogueViewModel : INotifyPropertyChanged
         if (IsBusy) return;
 
         if (IsRecording)
-        {
-            IsBusy = true;
-            StatusText = "Распознаю…";
-            _speechRecognizer.StopListening();
             return;
-        }
 
         if (!_speechRecognizer.IsAvailable)
         {
@@ -134,7 +129,7 @@ public class DialogueViewModel : INotifyPropertyChanged
         try
         {
             IsRecording = true;
-            StatusText = $"Говорите… · {ActiveLang.Name}";
+            StatusText = $"Системное распознавание… · {ActiveLang.Name}";
             _recordingOperation = FinishRecordingAsync(ActiveLang.Code, ActiveSpeaker);
             await _recordingOperation;
         }
