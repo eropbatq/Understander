@@ -4,7 +4,19 @@
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission android:name="android.permission.CAMERA" />
 	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 	<uses-feature android:name="android.hardware.camera" android:required="false" />
 	<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+	<uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+	<!-- Android 11+ (API 30): без этого блока система скрывает сервис
+	     распознавания речи, IsRecognitionAvailable() возвращает false
+	     и микрофон в режиме диалога не работает. -->
+	<queries>
+		<intent>
+			<action android:name="android.speech.RecognitionService" />
+		</intent>
+	</queries>
+
 	<application android:allowBackup="true" android:supportsRtl="true" android:label="Understander" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:theme="@style/AppTheme" android:usesCleartextTraffic="true"></application>
 </manifest>

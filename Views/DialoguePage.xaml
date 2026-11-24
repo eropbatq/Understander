@@ -4,7 +4,9 @@
              x:Class="Understander.Views.DialoguePage"
              xmlns:vm="clr-namespace:Understander.ViewModels"
              x:DataType="vm:DialogueViewModel"
-             BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}">
+             Title="Диалог"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
 
     <Grid RowDefinitions="Auto,*,Auto">
 
@@ -29,21 +31,18 @@
         </Border>
 
         <!-- Messages list -->
-        <ScrollView Grid.Row="1" VerticalScrollBarVisibility="Always">
-            <CollectionView ItemsSource="{Binding Messages}" VerticalScrollBarVisibility="Never"
-                            Margin="16,8,16,0">
-                <CollectionView.ItemsLayout>
-                    <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:DialogueMessage">
-                        <Frame Style="{StaticResource MessageFrame}"
-                               HasShadow="False"
-                               Padding="0"
-                               Margin="0,8,0,0"
-                               BackgroundColor="Transparent"
-                               BorderColor="{AppThemeBinding Light={StaticResource SurfaceAltLight}, Dark={StaticResource SurfaceAltDark}}">
-                            
+        <CollectionView Grid.Row="1" x:Name="MessagesView" ItemsSource="{Binding Messages}"
+                        SelectionMode="None"
+                        VerticalScrollBarVisibility="Never"
+                        Margin="16,8,16,0">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:DialogueMessage">
+                    <Border Style="{StaticResource MessageCardBorder}">
+                        <VerticalStackLayout Spacing="0">
+
                             <!-- Language direction label -->
                             <Label Text="{Binding FromLang, Converter={StaticResource CodeToNameConverter}}"
                                    Style="{StaticResource MessageLangLabel}" />
@@ -53,23 +52,21 @@
 
                             <!-- Translation (large, below original) -->
                             <Label Text="{Binding TranslatedText}" Style="{StaticResource MessageTranslationText}"
-                                   IsVisible="{Binding TranslatedText}" />
+                                   IsVisible="{Binding TranslatedText, Converter={StaticResource NullHasConverter}}" />
 
-                            <!-- Separator -->
-                            <BoxView Style="{StaticResource MessageSeparator}" />
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Padding="40">
-                        <Label Text="💬" FontSize="48" HorizontalOptions="Center" />
-                        <Label Text="Нажмите на микрофон и говорите"
-                               Style="{StaticResource SecondaryText}"
-                               HorizontalOptions="Center" HorizontalTextAlignment="Center" />
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-            </CollectionView>
-        </ScrollView>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" Padding="40">
+                    <Label Text="💬" FontSize="48" HorizontalOptions="Center" />
+                    <Label Text="Нажмите на микрофон и говорите"
+                           Style="{StaticResource SecondaryText}"
+                           HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
 
         <!-- Loading indicator -->
         <ActivityIndicator Grid.Row="1" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
@@ -85,11 +82,19 @@
                         Text="🎤"
                         Style="{StaticResource MicButton}"
                         Pressed="OnMicPressed"
-                        Released="OnMicReleased" />
+                        Released="OnMicReleased">
+                    <Button.Triggers>
+                        <!-- Пока идёт запись, кнопка красная -->
+                        <DataTrigger TargetType="Button" Binding="{Binding IsRecording}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#E5484D" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
                 <!-- Hint -->
-                <Label Text="Нажмите на значок микрофона, чтобы начать"
+                <Label Text="{Binding StatusText}"
                        Style="{StaticResource FieldCaption}"
-                       HorizontalOptions="Center" />
+                       HorizontalOptions="Center" HorizontalTextAlignment="Center"
+                       MaximumWidthRequest="300" />
             </VerticalStackLayout>
         </Grid>
 

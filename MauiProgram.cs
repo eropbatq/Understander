@@ -4,10 +4,6 @@ using Understander.Services;
 using Understander.ViewModels;
 using Understander.Views;
 
-#if ANDROID
-using Android.App;
-#endif
-
 namespace Understander;
 
 public static class MauiProgram
@@ -43,13 +39,9 @@ public static class MauiProgram
         builder.Services.AddSingleton<DialoguePage>();
 
 #if ANDROID
-        builder.Services.AddSingleton<ISpeechRecognizer>(sp =>
-        {
-            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (activity != null)
-                return new AndroidSpeechRecognizer(activity);
-            return new NoOpSpeechRecognizer();
-        });
+        // Activity здесь не кэшируется: сервис сам берёт актуальный контекст
+        // при каждом запуске записи, поэтому пересоздание Activity не ломает микрофон.
+        builder.Services.AddSingleton<ISpeechRecognizer, AndroidSpeechRecognizer>();
 #else
         builder.Services.AddSingleton<ISpeechRecognizer, NoOpSpeechRecognizer>();
 #endif

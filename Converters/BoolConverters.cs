@@ -23,13 +23,18 @@ public class BoolToHorizontalOptionConverter : IValueConverter
 }
 
 /// <summary>
-/// Преобразует null → false, non-null → true (для IsVisible).
+/// Преобразует null/пустую строку → false, любое значение → true (для IsVisible).
 /// </summary>
 public class NullHasConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is not null;
+        return value switch
+        {
+            null => false,
+            string s => !string.IsNullOrWhiteSpace(s),
+            _ => true
+        };
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
