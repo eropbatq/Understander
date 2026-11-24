@@ -18,7 +18,7 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
     static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(60);
 
     /// <summary>Сколько ждём финальный результат после StopListening.</summary>
-    static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(5);
+    static readonly TimeSpan ResultTimeout = TimeSpan.FromSeconds(10);
 
     readonly bool _isAvailable;
     readonly object _sync = new();
@@ -102,10 +102,17 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
 
             var intent = new Intent(RecognizerIntent.ActionRecognizeSpeech);
             intent.PutExtra(RecognizerIntent.ExtraLanguageModel, RecognizerIntent.LanguageModelFreeForm);
-            intent.PutExtra(RecognizerIntent.ExtraPrompt, "Говорите...");
-            intent.PutExtra(RecognizerIntent.ExtraLanguage, Bcp47Code(languageCode));
+            var locale = Bcp47Code(languageCode);
+            intent.PutExtra(RecognizerIntent.ExtraLanguage, locale);
+            intent.PutExtra(RecognizerIntent.ExtraLanguagePreference, locale);
             intent.PutExtra(RecognizerIntent.ExtraMaxResults, 3);
             intent.PutExtra(RecognizerIntent.ExtraPartialResults, true);
+            intent.PutExtra(RecognizerIntent.ExtraSpeechInputCompleteSilenceLengthMillis, 1500L);
+            intent.PutExtra(RecognizerIntent.ExtraSpeechInputPossiblyCompleteSilenceLengthMillis, 1000L);
+            // Не ограничиваем распознавание офлайн: на эмуляторе и на части
+            // телефонов Google Speech Services отдают результат через сеть.
+            // Установленные языковые пакеты при этом продолжают работать офлайн.
+            intent.PutExtra(RecognizerIntent.ExtraPreferOffline, false);
             intent.PutExtra(RecognizerIntent.ExtraCallingPackage, context.PackageName);
 
             recognizer.StartListening(intent);
@@ -209,12 +216,22 @@ public class AndroidSpeechRecognizer : ISpeechRecognizer, IDisposable
 
         if (recognizer is null) return;
 
-        // Destroy() тоже должен вызываться на главном потоке.
-        MainThread.BeginInvokeOnMainThread(() =>
+        void Destroy()
         {
-            try { recognizer.Destroy(); }
+            try
+            {
+                recognizer.SetRecognitionListener(null);
+                recognizer.Destroy();
+            }
             catch (Exception ex) { Log.Warn(Tag, $"[Understander] Error destroying: {ex.Message}"); }
-        });
+        }
+
+        // Не оставляем старый recognizer в очереди UI: новый сеанс должен
+        // запускаться только после фактического освобождения старого.
+        if (MainThread.IsMainThread)
+            Destroy();
+        else
+            MainThread.InvokeOnMainThreadAsync(Destroy).GetAwaiter().GetResult();
     }
 
     public void Dispose()

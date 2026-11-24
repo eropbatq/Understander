@@ -4,12 +4,6 @@ namespace Understander.Views;
 
 public partial class DialoguePage : ContentPage
 {
-    /// <summary>Нажатие дольше этого порога считается «удержанием» (push-to-talk).</summary>
-    const int HoldToTalkMs = 400;
-
-    DateTime _pressStartedAt;
-    bool _pressStartedRecording;
-
     public DialoguePage(DialogueViewModel vm)
     {
         InitializeComponent();
@@ -31,32 +25,16 @@ public partial class DialoguePage : ContentPage
 
         if (BindingContext is not DialogueViewModel vm) return;
 
-        // Повторное нажатие во время записи — завершаем её (режим «тап-тап»).
+        // Режим «тап-тап»: первое нажатие запускает запись, второе завершает её.
+        // Не останавливаем запись в Released: на эмуляторе отпускание пальца
+        // после обычного нажатия иначе преждевременно обрывало аудиофрагмент.
         if (vm.IsRecording)
         {
-            _pressStartedRecording = false;
             vm.StopRecordingCommand.Execute(null);
             return;
         }
 
-        _pressStartedAt = DateTime.UtcNow;
-        _pressStartedRecording = true;
-
         vm.StartRecordingCommand.Execute(null);
-    }
-
-    void OnMicReleased(object? sender, EventArgs e)
-    {
-        MicButton.Scale = 1;
-
-        if (BindingContext is not DialogueViewModel vm) return;
-
-        // Короткое касание оставляем «в записи» до следующего нажатия,
-        // иначе быстрый тап не успевает ничего записать.
-        if (_pressStartedRecording && (DateTime.UtcNow - _pressStartedAt).TotalMilliseconds >= HoldToTalkMs)
-            vm.StopRecordingCommand.Execute(null);
-
-        _pressStartedRecording = false;
     }
 
     void OnSwapTapped(object? sender, TappedEventArgs e)

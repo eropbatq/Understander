@@ -138,8 +138,39 @@ public partial class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
-            var result = await Provider.TranslateAsync(Input, From.Code, To.Code);
-            var pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {Provider.Name}";
+            // Один провайдер (особенно публичный Google endpoint) может быть
+            // временно заблокирован. Пробуем выбранный движок первым, затем
+            // остальные зарегистрированные движки.
+            var providers = new[] { Provider }
+                .Concat(Providers.Where(p => !ReferenceEquals(p, Provider)))
+                .ToList();
+            var errors = new List<string>();
+            string? result = null;
+            ITranslator? usedProvider = null;
+
+            foreach (var provider in providers)
+            {
+                try
+                {
+                    var candidate = await provider.TranslateAsync(Input, From.Code, To.Code);
+                    if (!string.IsNullOrWhiteSpace(candidate))
+                    {
+                        result = candidate.Trim();
+                        usedProvider = provider;
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{provider.Name}: {ex.Message}");
+                }
+            }
+
+            if (result is null || usedProvider is null)
+                throw new InvalidOperationException(
+                    "Не удалось перевести текст.\n" + string.Join("\n", errors));
+
+            var pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {usedProvider.Name}";
 
             Result = result;
             Pair = pair;
