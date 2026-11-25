@@ -59,6 +59,7 @@
 ### Главный экран
 
 - ввод текста вручную;
+- ввод текста на русском и других языках через системную клавиатуру Android;
 - вставка текста из буфера обмена;
 - выбор исходного и целевого языка;
 - обмен языков местами;
@@ -259,8 +260,9 @@ net9.0-windows10.0.19041.0  # добавляется на Windows-хосте
 2. MyMemory — запасной REST API;
 3. Lara — SDK-провайдер с ключами доступа.
 
-Если первый провайдер недоступен, `MainViewModel` пробует остальные зарегистрированные
-варианты.
+В главном экране используется именно выбранный пользователем провайдер. Автоматическая
+подмена Google на MyMemory отключена, чтобы результат и ошибка соответствовали выбранному
+движку. Другой провайдер можно выбрать вручную в поле «Движок».
 
 `GoogleTranslator` использует публичный endpoint `translate.googleapis.com` с параметром
 `client=gtx`. Это не официальный Google Cloud Translation API. Google может ограничивать
@@ -276,6 +278,9 @@ LARA_ACCESS_KEY_SECRET
 
 Перед публикацией необходимо удалить секреты из исходников, заменить ключи и хранить их
 вне репозитория.
+
+Lara остаётся доступен в списке движков даже без credentials, но при выборе без настроенных
+переменных окружения приложение показывает понятную ошибку вместо падения при запуске.
 
 Текстовый перевод и Lara/MyMemory требуют интернет-соединения. SQLite, история и локальные
 Tesseract-модели работают без сети. Распознавание зависит от Google Speech Services и может
@@ -305,7 +310,7 @@ adb devices
 
 ## Запуск из Visual Studio
 
-1. Откройте `C:\Users\tw1ckk\Desktop\Understander\Understander.sln`.
+1. Откройте файл `Understander.sln` из корня репозитория.
 2. Дождитесь восстановления NuGet-пакетов.
 3. Выберите Android Emulator или подключённый телефон.
 4. Выберите конфигурацию `Debug`.
@@ -319,7 +324,7 @@ adb devices
 ## Сборка и запуск из PowerShell
 
 ```powershell
-Set-Location "C:\Users\tw1ckk\Desktop\Understander"
+Set-Location .
 dotnet restore .\Understander.csproj
 dotnet clean .\Understander.csproj
 dotnet build .\Understander.csproj -f net9.0-android -c Debug
@@ -329,7 +334,7 @@ dotnet build .\Understander.csproj -t:Run -f net9.0-android -c Debug
 Для чистого теста можно удалить приложение:
 
 ```powershell
-adb uninstall com.companyname.understander
+adb uninstall <application-id>
 ```
 
 ---
@@ -416,7 +421,7 @@ Google RecognizerIntent result: 'привет'
 Проверка разрешений и пакетов:
 
 ```powershell
-adb shell dumpsys package com.companyname.understander
+adb shell dumpsys package <application-id>
 adb shell pm list packages | Select-String "google|speech|tts"
 ```
 
@@ -461,10 +466,8 @@ adb shell pm list packages | Select-String "google|speech|tts"
 
 ## Команда
 
-| Участник | Роль |
-|---|---|
-| Егор / `eropbatq` | Архитектура, backend, база данных |
-| Александр / `Tw1ckkHype` | UI, интеграция API и пользовательские сценарии |
+Проект разрабатывается учебной командой. Зоны ответственности разделены между
+архитектурой и backend-частью, пользовательским интерфейсом и интеграцией внешних API.
 
 Проект разработан в учебных целях.
 

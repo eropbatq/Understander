@@ -20,12 +20,11 @@ public static class MauiProgram
         var historyDb = new HistoryDatabase(dbPath);
         builder.Services.AddSingleton(historyDb);
         
-        // Initialize database on startup
-        _ = historyDb.InitializeAsync();
-
         builder.Services.AddSingleton<HttpClient>();
         builder.Services.AddSingleton<ITranslator, GoogleTranslator>();
         builder.Services.AddSingleton<ITranslator, MyMemoryTranslator>();
+        // Lara виден в списке движков, но создаёт SDK только при наличии
+        // внешних credentials. Секреты не хранятся в исходниках.
         builder.Services.AddSingleton<ITranslator, LaraTranslator>();
         builder.Services.AddSingleton<OcrService>();
         builder.Services.AddSingleton<HistoryViewModel>();

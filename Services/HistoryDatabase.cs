@@ -7,7 +7,9 @@ namespace Understander.Services;
 public class HistoryDatabase
 {
     readonly string _dbPath;
+    readonly object _connectionLock = new();
     SQLiteAsyncConnection? _database;
+    Task? _initializationTask;
 
     public HistoryDatabase(string dbPath)
     {
@@ -19,7 +21,7 @@ public class HistoryDatabase
     {
         if (_database != null) return _database;
         
-        lock (this)
+        lock (_connectionLock)
         {
             if (_database == null)
             {
@@ -32,15 +34,32 @@ public class HistoryDatabase
 
     public async Task InitializeAsync()
     {
+        Task initialization;
+        lock (_connectionLock)
+        {
+            _initializationTask ??= InitializeCoreAsync();
+            initialization = _initializationTask;
+        }
+        await initialization;
+    }
+
+    async Task InitializeCoreAsync()
+    {
+        var db = GetConnection();
+        await db.CreateTableAsync<HistoryRecord>();
+        Debug.WriteLine("[HistoryDB] Table created");
+    }
+
+    async Task EnsureInitializedAsync()
+    {
         try
         {
-            var db = GetConnection();
-            await db.CreateTableAsync<HistoryRecord>();
-            Debug.WriteLine("[HistoryDB] Table created");
+            await InitializeAsync();
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[HistoryDB] Init error: {ex.Message}");
+            Debug.WriteLine($"[HistoryDB] Initialization error: {ex}");
+            throw;
         }
     }
 
@@ -48,6 +67,7 @@ public class HistoryDatabase
     {
         try
         {
+            await EnsureInitializedAsync();
             var db = GetConnection();
             var records = await db.QueryAsync<HistoryRecord>("SELECT * FROM HistoryRecord ORDER BY Date DESC");
             Debug.WriteLine($"[HistoryDB] Loaded {records.Count} records");
@@ -64,6 +84,7 @@ public class HistoryDatabase
     {
         try
         {
+            await EnsureInitializedAsync();
             var db = GetConnection();
             record.Date = DateTime.UtcNow.ToString("o");
             var result = await db.InsertAsync(record);
@@ -79,12 +100,14 @@ public class HistoryDatabase
 
     public async Task<int> DeleteRecordAsync(HistoryRecord record)
     {
+        await EnsureInitializedAsync();
         var db = GetConnection();
         return await db.DeleteAsync(record);
     }
 
     public async Task<int> ClearAllAsync()
     {
+        await EnsureInitializedAsync();
         var db = GetConnection();
         return await db.ExecuteAsync("DELETE FROM HistoryRecord");
     }

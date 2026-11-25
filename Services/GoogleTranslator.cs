@@ -13,6 +13,7 @@ public class GoogleTranslator : ITranslator
     public GoogleTranslator(HttpClient http)
     {
         _http = http;
+        _http.Timeout = TimeSpan.FromSeconds(20);
     }
 
     public async Task<string> TranslateAsync(string text, string fromLang, string toLang)
@@ -28,7 +29,10 @@ public class GoogleTranslator : ITranslator
         {
             if (i > 0) await Task.Delay(1000 * i); // 1s, 2s delay
 
-            var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Android; Understander)");
+            request.Headers.TryAddWithoutValidation("Accept", "application/json,text/plain,*/*");
+            var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
             // Check if response is HTML (CAPTCHA page)
             var contentType = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() ?? "";
@@ -72,7 +76,8 @@ public class GoogleTranslator : ITranslator
                 throw new Exception($"Неожиданный формат ответа Google: {rawJson[..Math.Min(200, rawJson.Length)]}");
             }
 
-            // root[0] = [["Hello","привет",null,null,10]] — array of translation groups
+            // root[0] содержит сегменты формата [translatedText, sourceText, ...].
+            // Индекс 0 — перевод, индекс 1 — исходный фрагмент.
             var firstElement = root[0];
 
             if (firstElement.ValueKind != JsonValueKind.Array)
@@ -80,7 +85,7 @@ public class GoogleTranslator : ITranslator
                 throw new Exception($"root[0] не массив: {firstElement.GetRawText()}");
             }
 
-            var result = "";
+            var translatedParts = new List<string>();
 
             // Iterate through each translation group
             foreach (var group in firstElement.EnumerateArray())
@@ -90,48 +95,20 @@ public class GoogleTranslator : ITranslator
                     var arr = group;
                     var count = arr.GetArrayLength();
 
-                    // Try index 1 first (translated text)
-                    if (count >= 2)
+                    if (count > 0 && arr[0].ValueKind == JsonValueKind.String)
                     {
-                        var translated = arr[1];
-                        if (translated.ValueKind == JsonValueKind.String)
-                        {
-                            var val = translated.GetString();
-                            if (!string.IsNullOrEmpty(val))
-                            {
-                                result = val;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Fallback: find first non-empty string after index 0
-                    if (string.IsNullOrEmpty(result))
-                    {
-                        for (int j = 1; j < count; j++)
-                        {
-                            if (arr[j].ValueKind == JsonValueKind.String)
-                            {
-                                var val = arr[j].GetString();
-                                if (!string.IsNullOrEmpty(val))
-                                {
-                                    result = val;
-                                    break;
-                                }
-                            }
-                        }
+                        var val = arr[0].GetString();
+                        if (!string.IsNullOrEmpty(val)) translatedParts.Add(val);
                     }
                 }
                 else if (group.ValueKind == JsonValueKind.String)
                 {
                     var val = group.GetString();
-                    if (!string.IsNullOrEmpty(val))
-                    {
-                        result = val;
-                        break;
-                    }
+                    if (!string.IsNullOrEmpty(val)) translatedParts.Add(val);
                 }
             }
+
+            var result = string.Concat(translatedParts);
 
             Debug.WriteLine($"[GoogleTranslate] Result: '{result}'");
 

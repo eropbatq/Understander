@@ -100,7 +100,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         ClearCommand = new Command(Clear);
         PasteCommand = new AsyncCommand(Paste);
         UseHistoryCommand = new Command<HistoryItem>(UseHistory);
-        DeleteHistoryCommand = new Command<HistoryItem>(DeleteHistory);
+        DeleteHistoryCommand = new AsyncCommand<HistoryItem>(DeleteHistory);
 
         _ = LoadHistory();
 
@@ -127,7 +127,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
         catch
         {
-            // Silent fail — app works without history
+            System.Diagnostics.Debug.WriteLine("[MainVM] Failed to load history.");
         }
     }
 
@@ -138,37 +138,14 @@ public partial class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         try
         {
-            // Один провайдер (особенно публичный Google endpoint) может быть
-            // временно заблокирован. Пробуем выбранный движок первым, затем
-            // остальные зарегистрированные движки.
-            var providers = new[] { Provider }
-                .Concat(Providers.Where(p => !ReferenceEquals(p, Provider)))
-                .ToList();
-            var errors = new List<string>();
-            string? result = null;
-            ITranslator? usedProvider = null;
-
-            foreach (var provider in providers)
-            {
-                try
-                {
-                    var candidate = await provider.TranslateAsync(Input, From.Code, To.Code);
-                    if (!string.IsNullOrWhiteSpace(candidate))
-                    {
-                        result = candidate.Trim();
-                        usedProvider = provider;
-                        break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"{provider.Name}: {ex.Message}");
-                }
-            }
-
-            if (result is null || usedProvider is null)
-                throw new InvalidOperationException(
-                    "Не удалось перевести текст.\n" + string.Join("\n", errors));
+            // Используем именно выбранный движок. Нельзя незаметно подменять
+            // Google на MyMemory: пользователь должен видеть реальную ошибку
+            // выбранного провайдера и иметь возможность выбрать другой вручную.
+            var result = await Provider.TranslateAsync(Input, From.Code, To.Code);
+            if (string.IsNullOrWhiteSpace(result))
+                throw new InvalidOperationException($"Движок {Provider.Name} вернул пустой перевод.");
+            result = result.Trim();
+            var usedProvider = Provider;
 
             var pair = $"{From.Code.ToUpperInvariant()} → {To.Code.ToUpperInvariant()} · {usedProvider.Name}";
 
@@ -186,7 +163,10 @@ public partial class MainViewModel : INotifyPropertyChanged
                     Pair = pair
                 });
             }
-            catch { /* Silent fail */ }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MainVM] Failed to save history: {ex}");
+            }
         }
         catch (Exception ex)
         {
@@ -277,8 +257,15 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     void UseHistory(HistoryItem item) { Input = item.Source; Result = item.Result; Pair = item.Pair; }
 
-    void DeleteHistory(HistoryItem item)
+    async Task DeleteHistory(HistoryItem item)
     {
+        var record = await _database.GetRecordsAsync();
+        var matchingRecord = record.FirstOrDefault(r =>
+            r.Source == item.Source && r.Result == item.Result && r.Pair == item.Pair);
+
+        if (matchingRecord is not null)
+            await _database.DeleteRecordAsync(matchingRecord);
+
         History.Remove(item);
     }
 
